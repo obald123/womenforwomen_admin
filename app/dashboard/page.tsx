@@ -1,13 +1,39 @@
+"use client";
 import Link from "next/link";
-import DataStore from "../../lib/dataStore";
+import { useEffect, useState } from "react";
+import { apiFetch } from "../../lib/apiClient";
 
 export default function Page() {
-  const store = DataStore.list() as Record<string, any[]>;
-  const news = Array.isArray(store.news) ? store.news : [];
-  const events = Array.isArray(store.events) ? store.events : [];
-  const gallery = Array.isArray(store.gallery) ? store.gallery : [];
-  const team = Array.isArray(store.team) ? store.team : [];
-  const subscribers = Array.isArray(store.subscribers) ? store.subscribers : [];
+  const [counts, setCounts] = useState({
+    news: 0,
+    events: 0,
+    gallery: 0,
+    team: 0,
+    subscribers: 0,
+  });
+  const [recent, setRecent] = useState<any[]>([]);
+
+  useEffect(() => {
+    async function load() {
+      const [news, events, gallery, team, subscribers] = await Promise.all([
+        apiFetch<any>("/api/articles"),
+        apiFetch<any>("/api/events"),
+        apiFetch<any>("/api/gallery"),
+        apiFetch<any>("/api/team"),
+        apiFetch<any>("/api/newsletter/subscribers"),
+      ]);
+
+      setCounts({
+        news: news.total || news.data?.length || 0,
+        events: events.total || events.data?.length || 0,
+        gallery: gallery.total || gallery.data?.length || 0,
+        team: team.total || team.data?.length || 0,
+        subscribers: subscribers.data?.length || 0,
+      });
+      setRecent((news.data || []).slice(0, 6));
+    }
+    load().catch(() => {});
+  }, []);
 
   return (
     <div className="min-h-screen bg-[#FBFBFB] text-[#0D2323]">
@@ -31,7 +57,7 @@ export default function Page() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
             <div className="bg-white border border-[#F2F2F2] p-6">
               <div className="text-sm font-black text-gray-400 uppercase">Articles</div>
-              <div className="mt-4 text-3xl font-black">{news.length}</div>
+              <div className="mt-4 text-3xl font-black">{counts.news}</div>
               <div className="mt-4">
                 <Link href="/dashboard/news" className="text-[11px] font-bold text-[#00A991]">Manage articles</Link>
               </div>
@@ -39,7 +65,7 @@ export default function Page() {
 
             <div className="bg-white border border-[#F2F2F2] p-6">
               <div className="text-sm font-black text-gray-400 uppercase">Events</div>
-              <div className="mt-4 text-3xl font-black">{events.length}</div>
+              <div className="mt-4 text-3xl font-black">{counts.events}</div>
               <div className="mt-4">
                 <Link href="/dashboard/events" className="text-[11px] font-bold text-[#00A991]">Manage events</Link>
               </div>
@@ -47,7 +73,7 @@ export default function Page() {
 
             <div className="bg-white border border-[#F2F2F2] p-6">
               <div className="text-sm font-black text-gray-400 uppercase">Gallery</div>
-              <div className="mt-4 text-3xl font-black">{gallery.length}</div>
+              <div className="mt-4 text-3xl font-black">{counts.gallery}</div>
               <div className="mt-4">
                 <Link href="/dashboard/gallery" className="text-[11px] font-bold text-[#00A991]">Manage gallery</Link>
               </div>
@@ -55,7 +81,7 @@ export default function Page() {
 
             <div className="bg-white border border-[#F2F2F2] p-6">
               <div className="text-sm font-black text-gray-400 uppercase">Team</div>
-              <div className="mt-4 text-3xl font-black">{team.length}</div>
+              <div className="mt-4 text-3xl font-black">{counts.team}</div>
               <div className="mt-4">
                 <Link href="/dashboard/team" className="text-[11px] font-bold text-[#00A991]">Manage team</Link>
               </div>
@@ -63,7 +89,7 @@ export default function Page() {
 
             <div className="bg-white border border-[#F2F2F2] p-6">
               <div className="text-sm font-black text-gray-400 uppercase">Subscribers</div>
-              <div className="mt-4 text-3xl font-black">{subscribers.length}</div>
+              <div className="mt-4 text-3xl font-black">{counts.subscribers}</div>
               <div className="mt-4">
                 <Link href="/dashboard/newsletter" className="text-[11px] font-bold text-[#00A991]">Manage subscribers</Link>
               </div>
@@ -73,16 +99,16 @@ export default function Page() {
           <div className="bg-white border border-[#F2F2F2] p-6">
             <h2 className="text-[13px] font-black uppercase">Recent Articles</h2>
             <ul className="mt-4 space-y-3">
-              {news.length === 0 && (
+              {recent.length === 0 && (
                 <li className="text-gray-300">No articles yet</li>
               )}
-              {news.slice(0, 6).map((n: any) => (
+              {recent.map((n: any) => (
                 <li key={n.id} className="flex items-center justify-between">
                   <div>
                     <div className="text-[12px] font-black">{n.title || "Untitled"}</div>
-                    <div className="text-[11px] text-gray-400">{n.content ? String(n.content).substring(0, 80) + '...' : ''}</div>
+                    <div className="text-[11px] text-gray-400">{n.content ? String(n.content).substring(0, 80) + "..." : ""}</div>
                   </div>
-                  <div className="text-[11px] text-gray-400">{n.createdAt ? new Date(n.createdAt).toLocaleDateString() : ''}</div>
+                  <div className="text-[11px] text-gray-400">{n.createdAt ? new Date(n.createdAt).toLocaleDateString() : ""}</div>
                 </li>
               ))}
             </ul>

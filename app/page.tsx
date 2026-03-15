@@ -1,17 +1,33 @@
-"use client";
-import React from "react";
+﻿"use client";
+import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, User, ArrowRight, ShieldCheck } from "lucide-react";
+import { login, formatApiError } from "../lib/apiClient";
+import { toast } from "react-toastify";
 
 export default function LoginPage() {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
   function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    try {
-      localStorage.setItem("auth", "1");
-    } catch {}
-    router.push("/dashboard/news");
+    const form = new FormData(e.currentTarget);
+    const email = String(form.get("email") || form.get("username") || "").trim();
+    const password = String(form.get("password") || "");
+    setLoading(true);
+    setError(null);
+
+    login(email, password)
+      .then(() => {
+        router.push("/dashboard/news");
+      })
+      .catch((err) => {
+        const msg = formatApiError(err) || "Invalid credentials";
+        setError(msg);
+        toast.error(msg);
+      })
+      .finally(() => setLoading(false));
   }
 
   return (
@@ -49,21 +65,27 @@ export default function LoginPage() {
           </div>
 
           <form onSubmit={onSubmit} className="space-y-6">
-            {/* Username Input */}
+            {error && (
+              <div className="rounded-sm border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-600">
+                {error}
+              </div>
+            )}
+
+            {/* Email Input */}
             <div className="space-y-2">
               <label className="text-[11px] font-bold uppercase tracking-widest text-[#5A6362]">
-                Username
+                Email
               </label>
               <div className="relative group">
                 <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400 group-focus-within:text-[#007A71] transition-colors">
                   <User size={18} />
                 </div>
                 <input
-                  name="username"
-                  type="text"
+                  name="email"
+                  type="email"
                   required
-                  placeholder="Enter your username"
-                  className="block w-full pl-11 pr-4 py-3.5 bg-white border border-[#EDECE8] rounded-sm text-sm focus:outline-none focus:border-[#007A71] focus:ring-1 focus:ring-[#007A71] transition-all placeholder:text-gray-300"
+                  placeholder="you@example.com"
+                  className="block w-full pl-11 pr-4 py-3.5 bg-white border border-[#EDECE8] rounded-sm text-sm text-[#0D2323] focus:outline-none focus:border-[#007A71] focus:ring-1 focus:ring-[#007A71] transition-all placeholder:text-gray-300"
                 />
               </div>
             </div>
@@ -107,9 +129,10 @@ export default function LoginPage() {
             {/* Submit Button */}
             <button
               type="submit"
-              className="w-full flex items-center justify-center gap-2 bg-[#0D2323] hover:bg-[#1a3a3a] text-white py-4 rounded-sm font-bold uppercase text-[12px] tracking-[0.2em] transition-all shadow-xl hover:shadow-[#0D2323]/20 group"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 bg-[#0D2323] hover:bg-[#1a3a3a] text-white py-4 rounded-sm font-bold uppercase text-[12px] tracking-[0.2em] transition-all shadow-xl hover:shadow-[#0D2323]/20 group disabled:opacity-60"
             >
-              Access Portal
+              {loading ? "Signing in..." : "Access Portal"}
               <ArrowRight size={16} className="transition-transform group-hover:translate-x-1" />
             </button>
           </form>

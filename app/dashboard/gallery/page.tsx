@@ -1,16 +1,20 @@
-"use client";
+﻿"use client";
 import React, { useEffect, useState } from "react";
-import { Plus, Trash2, Image as ImageIcon, Maximize2, Camera, UploadCloud } from "lucide-react";
+import { Plus, Trash2, Image as ImageIcon, Maximize2, Camera, UploadCloud, Pencil } from "lucide-react";
 import Modal from "../components/Modal";
-import DataStore from "../../../lib/dataStore";
+import { apiFetch, formatApiError, resolveAssetUrl } from "../../../lib/apiClient";
+import { toast } from "react-toastify";
 
 export default function Page() {
   const [items, setItems] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editItem, setEditItem] = useState<any | null>(null);
 
   function fetchItems() {
-    const list = DataStore.list("gallery") || [];
-    setItems(Array.isArray(list) ? [...list] : []);
+    apiFetch<any>("/api/gallery")
+      .then((res) => setItems(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setItems([]));
   }
 
   useEffect(() => {
@@ -19,27 +23,48 @@ export default function Page() {
 
   function handleAdd(form: HTMLFormElement) {
     const fd = new FormData(form);
-    const payload: Record<string, any> = {};
-    const files: any[] = [];
-    for (const [k, v] of fd.entries()) {
-      if (v instanceof File && v.name) {
-        files.push({ name: v.name, size: v.size, type: v.type, preview: URL.createObjectURL(v) });
-      } else {
-        payload[k] = v;
-      }
-    }
-    payload.files = files;
-    payload.createdAt = new Date().toISOString();
-    DataStore.add("gallery", payload as any);
-    setOpen(false);
-    fetchItems();
+    fd.append("layout", "GRID");
+    fd.append("status", "PUBLISHED");
+
+    apiFetch("/api/gallery", { method: "POST", body: fd })
+      .then(() => {
+        setOpen(false);
+        fetchItems();
+      })
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
   function handleDelete(id: string) {
     if (confirm("Remove these assets from the gallery?")) {
-      DataStore.remove("gallery", id);
-      fetchItems();
+      apiFetch(`/api/gallery/${id}`, { method: "DELETE" })
+        .then(() => fetchItems())
+        .catch((err) => toast.error(formatApiError(err)));
     }
+  }
+
+  function handleEdit(item: any) {
+    setEditItem(item);
+    setEditOpen(true);
+  }
+
+  function handleUpdate(form: HTMLFormElement) {
+    if (!editItem) return;
+    const fd = new FormData(form);
+    const title = String(fd.get("title") || "");
+    apiFetch(`/api/gallery/${editItem.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        title,
+        layout: editItem.layout,
+        status: editItem.status,
+      }),
+    })
+      .then(() => {
+        setEditOpen(false);
+        setEditItem(null);
+        fetchItems();
+      })
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
   return (
@@ -87,8 +112,14 @@ export default function Page() {
                   <div className="absolute inset-0 flex items-center justify-center text-gray-300 group-hover:scale-110 transition-transform duration-700">
                     <Camera size={40} strokeWidth={1} />
                   </div>
-                  {/* Note: In a real app, you'd use <img src={it.files[0].preview} /> here */}
+                  {Array.isArray(it.images) && it.images[0]?.url && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={resolveAssetUrl(it.images[0].url)} alt={it.title} className="absolute inset-0 h-full w-full object-cover" />
+                  )}
                   <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => handleEdit(it)} className="bg-white p-2 text-[#0D2323] hover:text-[#00A991] mr-2">
+                      <Pencil size={16} />
+                    </button>
                     <button className="bg-white p-2 text-[#0D2323] hover:text-[#00A991]">
                       <Maximize2 size={16} />
                     </button>
@@ -101,7 +132,7 @@ export default function Page() {
                       {it.title || "UNTITLED ASSET"}
                     </h3>
                     <p className="text-[9px] font-bold text-[#00A991] tracking-[0.1em]">
-                      {new Date(it.createdAt).toLocaleDateString('en-GB')} • {it.files?.length || 0} FILES
+                      {new Date(it.createdAt).toLocaleDateString("en-GB")} • {it.images?.length || 0} FILES
                     </p>
                   </div>
                   <button onClick={() => handleDelete(it.id)} className="text-gray-300 hover:text-red-600 transition-colors p-1">
@@ -134,6 +165,20 @@ export default function Page() {
                 <button type="submit" className="bg-[#0D2323] text-white px-10 py-4 text-[11px] font-black tracking-[0.3em] uppercase hover:bg-[#00A991] transition-all">
                   Process Upload
                 </button>
+              </div>
+            </form>
+          </Modal>
+
+          {/* EDIT MODAL */}
+          <Modal open={editOpen} onClose={() => { setEditOpen(false); setEditItem(null); }} title="EDIT GALLERY">
+            <form onSubmit={(e) => { e.preventDefault(); handleUpdate(e.currentTarget); }} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Gallery Title</label>
+                <input name="title" defaultValue={editItem?.title || ""} required className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none uppercase tracking-widest" />
+              </div>
+              <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
+                <button type="button" onClick={() => { setEditOpen(false); setEditItem(null); }} className="text-[10px] font-black tracking-[0.3em] text-gray-400">CANCEL</button>
+                <button type="submit" className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black tracking-[0.2em] hover:bg-[#00A991] transition-all">SAVE CHANGES</button>
               </div>
             </form>
           </Modal>

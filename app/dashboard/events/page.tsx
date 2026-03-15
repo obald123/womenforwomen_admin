@@ -1,16 +1,20 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Plus, Trash2, Calendar as CalIcon, MapPin, Clock, MoreHorizontal, FilePlus } from "lucide-react";
+import { Plus, Trash2, MapPin, Clock, FilePlus, Pencil } from "lucide-react";
 import Modal from "../components/Modal";
-import DataStore from "../../../lib/dataStore";
+import { apiFetch, formatApiError } from "../../../lib/apiClient";
+import { toast } from "react-toastify";
 
 export default function Page() {
   const [items, setItems] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editItem, setEditItem] = useState<any | null>(null);
 
   function fetchItems() {
-    const list = DataStore.list("events") || [];
-    setItems(Array.isArray(list) ? [...list] : []);
+    apiFetch<any>("/api/events")
+      .then((res) => setItems(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setItems([]));
   }
 
   useEffect(() => {
@@ -19,21 +23,73 @@ export default function Page() {
 
   function handleAdd(form: HTMLFormElement) {
     const fd = new FormData(form);
-    const payload: Record<string, any> = {};
-    for (const [k, v] of fd.entries()) {
-      if (!(v instanceof File)) payload[k] = v;
+    const title = String(fd.get("name") || "");
+    const description = String(fd.get("description") || "");
+    if (description.length < 20) {
+      toast.error("Event details must be at least 20 characters");
+      return;
     }
-    payload.createdAt = new Date().toISOString();
-    DataStore.add("events", payload as any);
-    setOpen(false);
-    fetchItems();
+
+    const payload = new FormData();
+    payload.append("title", title);
+    payload.append("excerpt", description.slice(0, 140));
+    payload.append("content", description);
+    payload.append("eventDate", String(fd.get("date") || ""));
+    payload.append("location", "Kigali Headquarters");
+    payload.append("isOnline", "false");
+    payload.append("status", "PUBLISHED");
+    const cover = fd.get("coverImage");
+    if (cover instanceof File && cover.size > 0) payload.append("coverImage", cover);
+
+    apiFetch("/api/events", { method: "POST", body: payload })
+      .then(() => {
+        setOpen(false);
+        fetchItems();
+      })
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
   function handleDelete(id: string) {
     if(confirm("Permanently delete this event record?")) {
-      DataStore.remove("events", id);
-      fetchItems();
+      apiFetch(`/api/events/${id}`, { method: "DELETE" })
+        .then(() => fetchItems())
+        .catch((err) => toast.error(formatApiError(err)));
     }
+  }
+
+  function handleEdit(item: any) {
+    setEditItem(item);
+    setEditOpen(true);
+  }
+
+  function handleUpdate(form: HTMLFormElement) {
+    if (!editItem) return;
+    const fd = new FormData(form);
+    const title = String(fd.get("name") || "");
+    const description = String(fd.get("description") || "");
+    if (description.length < 20) {
+      toast.error("Event details must be at least 20 characters");
+      return;
+    }
+
+    const payload = new FormData();
+    payload.append("title", title);
+    payload.append("excerpt", description.slice(0, 140));
+    payload.append("content", description);
+    payload.append("eventDate", String(fd.get("date") || ""));
+    payload.append("location", String(fd.get("location") || editItem.location || ""));
+    payload.append("isOnline", fd.get("isOnline") ? "true" : "false");
+    payload.append("status", editItem.status || "PUBLISHED");
+    const cover = fd.get("coverImage");
+    if (cover instanceof File && cover.size > 0) payload.append("coverImage", cover);
+
+    apiFetch(`/api/events/${editItem.id}`, { method: "PATCH", body: payload })
+      .then(() => {
+        setEditOpen(false);
+        setEditItem(null);
+        fetchItems();
+      })
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
   return (
@@ -79,36 +135,36 @@ export default function Page() {
                 {/* Vertical Date Accent */}
                 <div className="absolute top-0 right-8 transform -translate-y-1/2 bg-[#0D2323] text-white px-4 py-2 flex flex-col items-center">
                   <span className="text-[14px] font-black leading-none">
-                    {it.date ? new Date(it.date).getDate() : '--'}
+                    {it.eventDate ? new Date(it.eventDate).getDate() : '--'}
                   </span>
                   <span className="text-[8px] font-bold tracking-widest uppercase opacity-60">
-                    {it.date ? new Date(it.date).toLocaleDateString('en-US', { month: 'short' }) : 'N/A'}
+                    {it.eventDate ? new Date(it.eventDate).toLocaleDateString('en-US', { month: 'short' }) : 'N/A'}
                   </span>
                 </div>
 
                 <div className="mb-10">
                   <h3 className="text-2xl font-[900] leading-[1.1] mb-4 uppercase tracking-tighter group-hover:text-[#00A991] transition-colors">
-                    {it.name || it.title}
+                    {it.title}
                   </h3>
                   <p className="text-[12px] text-gray-400 font-medium leading-relaxed line-clamp-3">
-                    {it.description}
+                    {it.excerpt}
                   </p>
                 </div>
 
                 <div className="space-y-3 pt-6 border-t border-gray-50">
                   <div className="flex items-center gap-3 text-[#0D2323]">
                     <Clock size={14} className="text-[#00A991]" />
-                    <span className="text-[10px] font-black tracking-widest uppercase">09:00 AM CAT</span>
+                    <span className="text-[10px] font-black tracking-widest uppercase">{it.isOnline ? "ONLINE" : "IN PERSON"}</span>
                   </div>
                   <div className="flex items-center gap-3 text-[#0D2323]">
                     <MapPin size={14} className="text-[#00A991]" />
-                    <span className="text-[10px] font-black tracking-widest uppercase">Kigali Headquarters</span>
+                    <span className="text-[10px] font-black tracking-widest uppercase">{it.location}</span>
                   </div>
                 </div>
 
                 <div className="mt-8 flex justify-between items-center">
-                   <button className="text-[10px] font-black tracking-[0.3em] uppercase text-[#0D2323] border-b-2 border-[#00A991] pb-1">
-                     Manage List
+                   <button onClick={() => handleEdit(it)} className="text-[10px] font-black tracking-[0.3em] uppercase text-[#0D2323] border-b-2 border-[#00A991] pb-1">
+                     Edit Event
                    </button>
                    <button onClick={() => handleDelete(it.id)} className="text-gray-300 hover:text-red-600 transition-colors">
                     <Trash2 size={16} />
@@ -145,10 +201,57 @@ export default function Page() {
                 <textarea name="description" rows={4} className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-medium leading-relaxed outline-none" />
               </div>
 
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Cover Image</label>
+                <input type="file" name="coverImage" accept="image/*" className="w-full bg-[#F9F9F9] p-2" />
+              </div>
+
               <div className="pt-6 border-t border-gray-100 flex justify-end gap-6 items-center">
                 <button type="button" onClick={() => setOpen(false)} className="text-[10px] font-black tracking-[0.3em] text-gray-400">DISCARD</button>
                 <button type="submit" className="bg-[#00A991] text-white px-10 py-4 text-[11px] font-black tracking-[0.3em] uppercase hover:bg-[#0D2323] transition-all">
                   Confirm Event
+                </button>
+              </div>
+            </form>
+          </Modal>
+
+          {/* EDIT MODAL */}
+          <Modal open={editOpen} onClose={() => { setEditOpen(false); setEditItem(null); }} title="EDIT EVENT">
+            <form onSubmit={(e) => { e.preventDefault(); handleUpdate(e.currentTarget); }} className="space-y-8 p-2">
+              <div className="grid grid-cols-2 gap-6">
+                <div className="col-span-2 space-y-2">
+                  <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Event Title</label>
+                  <input name="name" defaultValue={editItem?.title || ""} required className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none uppercase tracking-widest" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Date</label>
+                  <input type="date" name="date" defaultValue={editItem?.eventDate ? new Date(editItem.eventDate).toISOString().slice(0, 10) : ""} required className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Location</label>
+                  <input name="location" defaultValue={editItem?.location || ""} className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none" />
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Event Brief</label>
+                <textarea name="description" defaultValue={editItem?.content || ""} rows={4} className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-medium leading-relaxed outline-none" />
+              </div>
+
+              <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.2em] text-gray-500">
+                <input id="isOnline" name="isOnline" type="checkbox" defaultChecked={Boolean(editItem?.isOnline)} />
+                <label htmlFor="isOnline">Online Event</label>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Cover Image</label>
+                <input type="file" name="coverImage" accept="image/*" className="w-full bg-[#F9F9F9] p-2" />
+              </div>
+
+              <div className="pt-6 border-t border-gray-100 flex justify-end gap-6 items-center">
+                <button type="button" onClick={() => { setEditOpen(false); setEditItem(null); }} className="text-[10px] font-black tracking-[0.3em] text-gray-400">DISCARD</button>
+                <button type="submit" className="bg-[#00A991] text-white px-10 py-4 text-[11px] font-black tracking-[0.3em] uppercase hover:bg-[#0D2323] transition-all">
+                  Save Changes
                 </button>
               </div>
             </form>

@@ -3,6 +3,7 @@ import { Montserrat, Inter } from "next/font/google";
 import "./globals.css";
 import Sidebar from "./dashboard/components/Sidebar"; // Adjust paths based on your project
 import Header from "./dashboard/components/Header";
+import ToastProvider from "./components/ToastProvider";
 
 const montserrat = Montserrat({
   subsets: ["latin"],
@@ -43,6 +44,7 @@ export default function RootLayout({
             </main>
           </div>
         </div>
+        <ToastProvider />
       </body>
     </html>
   );

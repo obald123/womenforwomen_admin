@@ -10,6 +10,7 @@ import {
   Search,
   ExternalLink
 } from "lucide-react";
+import { logout } from "../../../lib/apiClient";
 
 export default function Header() {
   const pathname = usePathname();
@@ -89,7 +90,9 @@ export default function Header() {
                   <DropdownItem icon={<ExternalLink size={14}/>} label="LIVE SITE" />
                   <div className="h-px bg-gray-50 my-2 mx-4" />
                   <button 
-                    onClick={() => router.push("/")}
+                    onClick={() => {
+                      logout().finally(() => router.push("/"));
+                    }}
                     className="w-full flex items-center gap-3 px-6 py-3 text-[10px] font-black text-red-500 hover:bg-red-50 tracking-[0.2em]"
                   >
                     <LogOut size={14} />

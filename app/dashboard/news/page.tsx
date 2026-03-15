@@ -1,17 +1,25 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Plus, Trash2, ExternalLink, FileText, Search, MoreHorizontal } from "lucide-react";
+import { Plus, Trash2, ExternalLink, Search, Pencil } from "lucide-react";
 import Modal from "../components/Modal";
-import DataStore from "../../../lib/dataStore";
+import { apiFetch, formatApiError, resolveAssetUrl } from "../../../lib/apiClient";
+import { toast } from "react-toastify";
 
 export default function Page() {
   const [items, setItems] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editItem, setEditItem] = useState<any | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewItem, setViewItem] = useState<any | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<any | null>(null);
 
   function fetchItems() {
-    const list = DataStore.list("news") || [];
-    setItems(Array.isArray(list) ? [...list] : []);
+    apiFetch<any>("/api/articles")
+      .then((res) => setItems(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setItems([]));
   }
 
   useEffect(() => {
@@ -24,22 +32,80 @@ export default function Page() {
 
   function handleAdd(form: HTMLFormElement) {
     const fd = new FormData(form);
-    const payload: Record<string, any> = {};
-    for (const [k, v] of fd.entries()) {
-      if (!(v instanceof File)) payload[k] = v;
+    const title = String(fd.get("title") || "");
+    const content = String(fd.get("content") || "");
+    if (content.length < 20) {
+      toast.error("Content must be at least 20 characters");
+      return;
     }
-    payload.createdAt = new Date().toISOString();
-    payload.status = "Published"; // Default status
-    DataStore.add("news", payload as any);
-    setOpen(false);
-    fetchItems();
+    const payload = new FormData();
+    payload.append("title", title);
+    payload.append("content", content);
+    payload.append("excerpt", content.slice(0, 140));
+    payload.append("category", "NEWS");
+    payload.append("status", "PUBLISHED");
+    const cover = fd.get("coverImage");
+    if (cover instanceof File && cover.size > 0) payload.append("coverImage", cover);
+
+    apiFetch("/api/articles", { method: "POST", body: payload })
+      .then(() => {
+        setOpen(false);
+        fetchItems();
+      })
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
-  function handleDelete(id: string) {
-    if(confirm("Are you sure you want to remove this article?")) {
-      DataStore.remove("news", id);
-      fetchItems();
+  function handleDeleteRequest(item: any) {
+    setDeleteItem(item);
+    setDeleteOpen(true);
+  }
+
+  function handleDeleteConfirm() {
+    if (!deleteItem) return;
+    apiFetch(`/api/articles/${deleteItem.id}`, { method: "DELETE" })
+      .then(() => {
+        setDeleteOpen(false);
+        setDeleteItem(null);
+        fetchItems();
+      })
+      .catch((err) => toast.error(formatApiError(err)));
+  }
+
+  function handleEdit(item: any) {
+    setEditItem(item);
+    setEditOpen(true);
+  }
+
+  function handleView(item: any) {
+    setViewItem(item);
+    setViewOpen(true);
+  }
+
+  function handleUpdate(form: HTMLFormElement) {
+    if (!editItem) return;
+    const fd = new FormData(form);
+    const title = String(fd.get("title") || "");
+    const content = String(fd.get("content") || "");
+    if (content.length < 20) {
+      toast.error("Content must be at least 20 characters");
+      return;
     }
+    const payload = new FormData();
+    payload.append("title", title);
+    payload.append("content", content);
+    payload.append("excerpt", content.slice(0, 140));
+    payload.append("category", editItem.category || "NEWS");
+    payload.append("status", editItem.status || "PUBLISHED");
+    const cover = fd.get("coverImage");
+    if (cover instanceof File && cover.size > 0) payload.append("coverImage", cover);
+
+    apiFetch(`/api/articles/${editItem.id}`, { method: "PATCH", body: payload })
+      .then(() => {
+        setEditOpen(false);
+        setEditItem(null);
+        fetchItems();
+      })
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
   return (
@@ -124,11 +190,14 @@ export default function Page() {
                       </td>
                       <td className="px-8 py-6 text-right whitespace-nowrap">
                         <div className="flex justify-end items-center gap-4">
-                          <button className="text-gray-300 hover:text-[#0D2323] transition-colors">
-                             <ExternalLink size={16} />
+                          <button onClick={() => handleEdit(it)} className="text-gray-300 hover:text-[#0D2323] transition-colors">
+                            <Pencil size={16} />
+                          </button>
+                          <button onClick={() => handleView(it)} className="text-gray-300 hover:text-[#0D2323] transition-colors">
+                            <ExternalLink size={16} />
                           </button>
                           <button 
-                            onClick={() => handleDelete(it.id)}
+                            onClick={() => handleDeleteRequest(it)}
                             className="text-gray-300 hover:text-red-600 transition-colors"
                           >
                              <Trash2 size={16} />
@@ -153,11 +222,94 @@ export default function Page() {
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Article Content</label>
                 <textarea name="content" required rows={5} className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-medium outline-none transition-all" />
               </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Cover Image</label>
+                <input name="coverImage" type="file" accept="image/*" className="w-full" />
+              </div>
               <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
                 <button type="button" onClick={() => setOpen(false)} className="text-[10px] font-black tracking-[0.2em] text-gray-400">CANCEL</button>
                 <button type="submit" className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black tracking-[0.2em] hover:bg-[#00A991] transition-all">PUBLISH</button>
               </div>
             </form>
+          </Modal>
+
+          {/* EDIT MODAL */}
+          <Modal open={editOpen} onClose={() => { setEditOpen(false); setEditItem(null); }} title="EDIT ARTICLE">
+            <form onSubmit={(e) => { e.preventDefault(); handleUpdate(e.currentTarget); }} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Headline</label>
+                <input name="title" defaultValue={editItem?.title || ""} required className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all uppercase tracking-widest" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Article Content</label>
+                <textarea name="content" defaultValue={editItem?.content || ""} required rows={5} className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-medium outline-none transition-all" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Cover Image</label>
+                <input name="coverImage" type="file" accept="image/*" className="w-full" />
+              </div>
+              <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
+                <button type="button" onClick={() => { setEditOpen(false); setEditItem(null); }} className="text-[10px] font-black tracking-[0.2em] text-gray-400">CANCEL</button>
+                <button type="submit" className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black tracking-[0.2em] hover:bg-[#00A991] transition-all">SAVE CHANGES</button>
+              </div>
+            </form>
+          </Modal>
+
+          {/* VIEW MODAL */}
+          <Modal open={viewOpen} onClose={() => { setViewOpen(false); setViewItem(null); }} title="ARTICLE DETAILS">
+            {viewItem && (
+              <div className="space-y-4">
+                {viewItem.coverImage && (
+                  <div className="overflow-hidden rounded-md border border-[#F2F2F2]">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={resolveAssetUrl(viewItem.coverImage)}
+                      alt={viewItem.title}
+                      className="w-full max-h-[320px] object-cover"
+                    />
+                  </div>
+                )}
+                <div>
+                  <div className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Title</div>
+                  <div className="mt-2 text-sm font-bold uppercase text-[#0D2323]">{viewItem.title}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Excerpt</div>
+                  <div className="mt-2 text-sm text-[#0D2323]">{viewItem.excerpt}</div>
+                </div>
+                <div>
+                  <div className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Content</div>
+                  <div className="mt-2 text-sm text-[#0D2323] whitespace-pre-wrap">{viewItem.content}</div>
+                </div>
+                <div className="flex justify-end pt-2">
+                  <button type="button" onClick={() => { setViewOpen(false); setViewItem(null); }} className="bg-[#0D2323] text-white px-6 py-2 text-[10px] font-black tracking-[0.2em] hover:bg-[#00A991] transition-all">
+                    CLOSE
+                  </button>
+                </div>
+              </div>
+            )}
+          </Modal>
+
+          {/* DELETE CONFIRMATION */}
+          <Modal open={deleteOpen} onClose={() => { setDeleteOpen(false); setDeleteItem(null); }} title="DELETE ARTICLE">
+            <div className="space-y-4">
+              <p className="text-sm text-[#0D2323]">
+                Are you sure you want to delete this article?
+              </p>
+              {deleteItem?.title && (
+                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+                  {deleteItem.title}
+                </p>
+              )}
+              <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
+                <button type="button" onClick={() => { setDeleteOpen(false); setDeleteItem(null); }} className="text-[10px] font-black tracking-[0.2em] text-gray-400">
+                  CANCEL
+                </button>
+                <button type="button" onClick={handleDeleteConfirm} className="bg-red-600 text-white px-8 py-3 text-[10px] font-black tracking-[0.2em] hover:bg-red-700 transition-all">
+                  DELETE
+                </button>
+              </div>
+            </div>
           </Modal>
 
         </div>

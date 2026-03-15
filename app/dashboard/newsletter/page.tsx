@@ -2,7 +2,8 @@
 import React, { useEffect, useState } from "react";
 import { Mail, Plus, Send, Trash2 } from "lucide-react";
 import Modal from "../components/Modal";
-import DataStore from "../../../lib/dataStore";
+import { apiFetch, formatApiError } from "../../../lib/apiClient";
+import { toast } from "react-toastify";
 
 export default function Page() {
   const [subs, setSubs] = useState<any[]>([]);
@@ -11,13 +12,15 @@ export default function Page() {
   const [openCompose, setOpenCompose] = useState(false);
 
   function fetchSubs() {
-    const list = DataStore.list("subscribers") || [];
-    setSubs(Array.isArray(list) ? [...list] : []);
+    apiFetch<any>("/api/newsletter/subscribers")
+      .then((res) => setSubs(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setSubs([]));
   }
 
   function fetchNews() {
-    const list = DataStore.list("news") || [];
-    setNews(Array.isArray(list) ? [...list] : []);
+    apiFetch<any>("/api/articles")
+      .then((res) => setNews(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setNews([]));
   }
 
   useEffect(() => {
@@ -29,54 +32,52 @@ export default function Page() {
     const fd = new FormData(form);
     const name = (fd.get("name") as string) || "";
     const email = (fd.get("email") as string) || "";
-    if (!email) return alert("Please provide an email");
-    DataStore.add("subscribers", { name, email, createdAt: new Date().toISOString() });
-    setOpenAdd(false);
-    fetchSubs();
+    if (!email) return toast.error("Please provide an email");
+
+    apiFetch("/api/public/subscribe", {
+      method: "POST",
+      body: JSON.stringify({ name, email }),
+    })
+      .then(() => {
+        setOpenAdd(false);
+        fetchSubs();
+      })
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
   function removeSubscriber(id: string) {
     if (!confirm("Remove subscriber?")) return;
-    DataStore.remove("subscribers", id);
-    fetchSubs();
+    apiFetch(`/api/newsletter/unsubscribe/${id}`, { method: "DELETE" })
+      .then(() => fetchSubs())
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
-  function sendToSubscribers(subject: string, content: string, meta: Record<string, any> = {}) {
-    const list = DataStore.list("subscribers") || [];
-    const recipients = Array.isArray(list) ? list : [];
-    if (recipients.length === 0) return alert("No subscribers to send to");
-
-    recipients.forEach((r: any) => {
-      DataStore.add("sent_newsletters", {
-        to: r.email,
-        toName: r.name,
-        subject,
-        content,
-        sentAt: new Date().toISOString(),
-        ...meta,
-      });
+  async function sendToSubscribers(subject: string, content: string) {
+    const campaign = await apiFetch<any>("/api/newsletter/campaigns", {
+      method: "POST",
+      body: JSON.stringify({ subject, content }),
     });
-
-    alert(`Newsletter sent to ${recipients.length} subscribers`);
+    await apiFetch(`/api/newsletter/send/${campaign.data.id}`, { method: "POST" });
   }
 
   function sendNewsletter(form: HTMLFormElement) {
     const fd = new FormData(form);
     const subject = (fd.get("subject") as string) || "";
     const content = (fd.get("content") as string) || "";
-    if (!subject || !content) return alert("Fill subject and body");
+    if (!subject || !content) return toast.error("Fill subject and body");
 
-    sendToSubscribers(subject, content);
-    setOpenCompose(false);
+    sendToSubscribers(subject, content)
+      .then(() => setOpenCompose(false))
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
   function sendArticle(articleId: string) {
     const article = news.find((n) => n.id === articleId);
-    if (!article) return alert("Article not found");
-    if (!confirm(`Send article \"${article.title}\" to all subscribers?`)) return;
+    if (!article) return toast.error("Article not found");
+    if (!confirm(`Send article "${article.title}" to all subscribers?`)) return;
     const subject = article.title || "News update";
-    const content = article.content || article.description || "";
-    sendToSubscribers(subject, content, { articleId: article.id });
+    const content = article.content || article.excerpt || "";
+    sendToSubscribers(subject, content).catch((err) => toast.error(formatApiError(err)));
   }
 
   return (
@@ -105,7 +106,6 @@ export default function Page() {
             </div>
           </div>
 
-          {/* Articles list with quick-send action */}
           <div className="bg-white border border-[#F2F2F2] p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-[13px] font-black uppercase">Articles</h2>
@@ -120,7 +120,7 @@ export default function Page() {
                   <li key={a.id} className="flex items-center justify-between py-3">
                     <div>
                       <div className="text-[12px] font-black">{a.title || "Untitled"}</div>
-                      <div className="text-[11px] text-gray-400">{String(a.content || a.description || "").substring(0, 120)}...</div>
+                      <div className="text-[11px] text-gray-400">{String(a.content || a.excerpt || "").substring(0, 120)}...</div>
                     </div>
                     <div>
                       <button onClick={() => sendArticle(a.id)} className="bg-[#0D2323] text-white px-4 py-2 text-[11px] font-bold">Send</button>

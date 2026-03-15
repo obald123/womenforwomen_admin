@@ -1,16 +1,20 @@
 "use client";
 import React, { useEffect, useState } from "react";
-import { Plus, Trash2, Image as ImageIcon } from "lucide-react";
+import { Plus, Trash2, Image as ImageIcon, Pencil } from "lucide-react";
 import Modal from "../components/Modal";
-import DataStore from "../../../lib/dataStore";
+import { apiFetch, formatApiError, resolveAssetUrl } from "../../../lib/apiClient";
+import { toast } from "react-toastify";
 
 export default function Page() {
   const [items, setItems] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editItem, setEditItem] = useState<any | null>(null);
 
   function fetchItems() {
-    const list = DataStore.list("team") || [];
-    setItems(Array.isArray(list) ? [...list] : []);
+    apiFetch<any>("/api/team")
+      .then((res) => setItems(Array.isArray(res.data) ? res.data : []))
+      .catch(() => setItems([]));
   }
 
   useEffect(() => {
@@ -19,27 +23,47 @@ export default function Page() {
 
   function handleAdd(form: HTMLFormElement) {
     const fd = new FormData(form);
-    const payload: Record<string, any> = {};
-    const files: any[] = [];
-    for (const [k, v] of fd.entries()) {
-      if (v instanceof File && v.name) {
-        files.push({ name: v.name, size: v.size, type: v.type, preview: URL.createObjectURL(v) });
-      } else {
-        payload[k] = v;
-      }
-    }
-    if (files.length) payload.files = files;
-    payload.createdAt = new Date().toISOString();
-    DataStore.add("team", payload as any);
-    setOpen(false);
-    fetchItems();
+    fd.append("category", "STAFF");
+    fd.append("status", "PUBLISHED");
+
+    apiFetch("/api/team", { method: "POST", body: fd })
+      .then(() => {
+        setOpen(false);
+        fetchItems();
+      })
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
   function handleDelete(id: string) {
     if (confirm("Remove team member?")) {
-      DataStore.remove("team", id);
-      fetchItems();
+      apiFetch(`/api/team/${id}`, { method: "DELETE" })
+        .then(() => fetchItems())
+        .catch((err) => toast.error(formatApiError(err)));
     }
+  }
+
+  function handleEdit(item: any) {
+    setEditItem(item);
+    setEditOpen(true);
+  }
+
+  function handleUpdate(form: HTMLFormElement) {
+    if (!editItem) return;
+    const fd = new FormData(form);
+    fd.append("category", editItem.category || "STAFF");
+    fd.append("status", editItem.status || "PUBLISHED");
+    const photo = fd.get("photo");
+    if (!(photo instanceof File) || photo.size === 0) {
+      fd.delete("photo");
+    }
+
+    apiFetch(`/api/team/${editItem.id}`, { method: "PATCH", body: fd })
+      .then(() => {
+        setEditOpen(false);
+        setEditItem(null);
+        fetchItems();
+      })
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
   return (
@@ -76,22 +100,27 @@ export default function Page() {
               <div key={it.id} className="bg-white border border-[#F2F2F2] p-6">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-20 h-20 bg-gray-100 rounded-full overflow-hidden flex items-center justify-center">
-                    {it.files?.[0]?.preview ? (
+                    {it.photo ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={it.files[0].preview} alt={it.name} className="w-full h-full object-cover" />
+                      <img src={resolveAssetUrl(it.photo)} alt={it.name} className="w-full h-full object-cover" />
                     ) : (
                       <ImageIcon size={28} className="text-gray-300" />
                     )}
                   </div>
                   <div className="flex-1">
                     <h3 className="text-[13px] font-black uppercase">{it.name}</h3>
-                    <p className="text-[11px] font-bold text-gray-400 mt-1">{it.title}</p>
+                    <p className="text-[11px] font-bold text-gray-400 mt-1">{it.role}</p>
                   </div>
-                  <button onClick={() => handleDelete(it.id)} className="text-gray-300 hover:text-red-600">
-                    <Trash2 size={16} />
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => handleEdit(it)} className="text-gray-300 hover:text-[#0D2323]">
+                      <Pencil size={16} />
+                    </button>
+                    <button onClick={() => handleDelete(it.id)} className="text-gray-300 hover:text-red-600">
+                      <Trash2 size={16} />
+                    </button>
+                  </div>
                 </div>
-                <p className="text-[11px] text-gray-700">{it.description}</p>
+                <p className="text-[11px] text-gray-700">{it.bio}</p>
               </div>
             ))}
           </div>
@@ -104,13 +133,13 @@ export default function Page() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Title</label>
-                <input name="title" required className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all" />
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Role</label>
+                <input name="role" required className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all" />
               </div>
 
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Bio</label>
-                <textarea name="description" rows={4} className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-medium outline-none transition-all" />
+                <textarea name="bio" rows={4} className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-medium outline-none transition-all" />
               </div>
 
               <div className="space-y-2">
@@ -121,6 +150,35 @@ export default function Page() {
               <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
                 <button type="button" onClick={() => setOpen(false)} className="text-[10px] font-black tracking-[0.2em] text-gray-400">CANCEL</button>
                 <button type="submit" className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black tracking-[0.2em] hover:bg-[#00A991] transition-all">ADD MEMBER</button>
+              </div>
+            </form>
+          </Modal>
+
+          <Modal open={editOpen} onClose={() => { setEditOpen(false); setEditItem(null); }} title="Edit Team Member">
+            <form onSubmit={(e) => { e.preventDefault(); handleUpdate(e.currentTarget); }} className="space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Full Name</label>
+                <input name="name" defaultValue={editItem?.name || ""} required className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all uppercase tracking-widest" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Role</label>
+                <input name="role" defaultValue={editItem?.role || ""} required className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Bio</label>
+                <textarea name="bio" defaultValue={editItem?.bio || ""} rows={4} className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-medium outline-none transition-all" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Photo</label>
+                <input type="file" name="photo" accept="image/*" className="w-full" />
+              </div>
+
+              <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
+                <button type="button" onClick={() => { setEditOpen(false); setEditItem(null); }} className="text-[10px] font-black tracking-[0.2em] text-gray-400">CANCEL</button>
+                <button type="submit" className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black tracking-[0.2em] hover:bg-[#00A991] transition-all">SAVE CHANGES</button>
               </div>
             </form>
           </Modal>
