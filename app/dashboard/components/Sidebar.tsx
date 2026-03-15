@@ -8,16 +8,17 @@ import {
   Image as ImageIcon, 
   Users,
   Mail,
+  MessageSquare,
   ArrowLeft,
   ArrowRight,
   LayoutDashboard,
-  
 } from "lucide-react";
 
 const mainNav = [
   { key: "overview", label: "Overview", icon: LayoutDashboard },
   { key: "news", label: "News & Articles", icon: Newspaper },
   { key: "events", label: "Events", icon: CalendarDays },
+  { key: "messages", label: "Messages", icon: MessageSquare },
   { key: "gallery", label: "Gallery", icon: ImageIcon },
   { key: "team", label: "Team", icon: Users },
   { key: "newsletter", label: "Newsletter", icon: Mail },

@@ -24,7 +24,12 @@ export default function Page() {
   function handleAdd(form: HTMLFormElement) {
     const fd = new FormData(form);
     const title = String(fd.get("name") || "");
+    const excerpt = String(fd.get("excerpt") || "");
     const description = String(fd.get("description") || "");
+    if (excerpt.length < 10) {
+      toast.error("Short description must be at least 10 characters");
+      return;
+    }
     if (description.length < 20) {
       toast.error("Event details must be at least 20 characters");
       return;
@@ -32,11 +37,13 @@ export default function Page() {
 
     const payload = new FormData();
     payload.append("title", title);
-    payload.append("excerpt", description.slice(0, 140));
+    payload.append("excerpt", excerpt);
     payload.append("content", description);
     payload.append("eventDate", String(fd.get("date") || ""));
-    payload.append("location", "Kigali Headquarters");
-    payload.append("isOnline", "false");
+    payload.append("location", String(fd.get("location") || ""));
+    payload.append("isOnline", fd.get("isOnline") ? "true" : "false");
+    payload.append("badgeLabel", String(fd.get("badgeLabel") || ""));
+    payload.append("isFeatured", fd.get("isFeatured") ? "true" : "false");
     payload.append("status", "PUBLISHED");
     const cover = fd.get("coverImage");
     if (cover instanceof File && cover.size > 0) payload.append("coverImage", cover);
@@ -66,7 +73,12 @@ export default function Page() {
     if (!editItem) return;
     const fd = new FormData(form);
     const title = String(fd.get("name") || "");
+    const excerpt = String(fd.get("excerpt") || "");
     const description = String(fd.get("description") || "");
+    if (excerpt.length < 10) {
+      toast.error("Short description must be at least 10 characters");
+      return;
+    }
     if (description.length < 20) {
       toast.error("Event details must be at least 20 characters");
       return;
@@ -74,11 +86,13 @@ export default function Page() {
 
     const payload = new FormData();
     payload.append("title", title);
-    payload.append("excerpt", description.slice(0, 140));
+    payload.append("excerpt", excerpt);
     payload.append("content", description);
     payload.append("eventDate", String(fd.get("date") || ""));
     payload.append("location", String(fd.get("location") || editItem.location || ""));
     payload.append("isOnline", fd.get("isOnline") ? "true" : "false");
+    payload.append("badgeLabel", String(fd.get("badgeLabel") || ""));
+    payload.append("isFeatured", fd.get("isFeatured") ? "true" : "false");
     payload.append("status", editItem.status || "PUBLISHED");
     const cover = fd.get("coverImage");
     if (cover instanceof File && cover.size > 0) payload.append("coverImage", cover);
@@ -187,18 +201,35 @@ export default function Page() {
                   <input type="date" name="date" required className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none" />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Category</label>
-                  <select className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none">
-                    <option>WORKSHOP</option>
-                    <option>CONFERENCE</option>
-                    <option>FUNDRAISER</option>
-                  </select>
+                  <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Location</label>
+                  <input name="location" required className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none" />
                 </div>
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Event Brief</label>
+                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Short Description</label>
+                <textarea name="excerpt" rows={2} className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-medium leading-relaxed outline-none" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Full Description</label>
                 <textarea name="description" rows={4} className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-medium leading-relaxed outline-none" />
+              </div>
+
+              <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.2em] text-gray-500">
+                <input id="isOnlineCreate" name="isOnline" type="checkbox" />
+                <label htmlFor="isOnlineCreate">Online Event</label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Badge Label</label>
+                  <input name="badgeLabel" placeholder="EVENT" className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none uppercase tracking-widest" />
+                </div>
+                <label className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.2em] text-gray-500">
+                  <input id="isFeatured" name="isFeatured" type="checkbox" />
+                  Featured Event
+                </label>
               </div>
 
               <div className="space-y-2">
@@ -234,13 +265,29 @@ export default function Page() {
               </div>
 
               <div className="space-y-2">
-                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Event Brief</label>
+                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Short Description</label>
+                <textarea name="excerpt" defaultValue={editItem?.excerpt || ""} rows={2} className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-medium leading-relaxed outline-none" />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Full Description</label>
                 <textarea name="description" defaultValue={editItem?.content || ""} rows={4} className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-medium leading-relaxed outline-none" />
               </div>
 
               <div className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.2em] text-gray-500">
                 <input id="isOnline" name="isOnline" type="checkbox" defaultChecked={Boolean(editItem?.isOnline)} />
                 <label htmlFor="isOnline">Online Event</label>
+              </div>
+
+              <div className="grid grid-cols-2 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Badge Label</label>
+                  <input name="badgeLabel" defaultValue={editItem?.badgeLabel || ""} placeholder="EVENT" className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none uppercase tracking-widest" />
+                </div>
+                <label className="flex items-center gap-3 text-[11px] font-bold uppercase tracking-[0.2em] text-gray-500">
+                  <input id="isFeaturedEdit" name="isFeatured" type="checkbox" defaultChecked={Boolean(editItem?.isFeatured)} />
+                  Featured Event
+                </label>
               </div>
 
               <div className="space-y-2">

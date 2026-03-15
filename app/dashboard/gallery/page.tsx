@@ -10,6 +10,10 @@ export default function Page() {
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editItem, setEditItem] = useState<any | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<any | null>(null);
+  const [viewOpen, setViewOpen] = useState(false);
+  const [viewItem, setViewItem] = useState<any | null>(null);
 
   function fetchItems() {
     apiFetch<any>("/api/gallery")
@@ -34,17 +38,30 @@ export default function Page() {
       .catch((err) => toast.error(formatApiError(err)));
   }
 
-  function handleDelete(id: string) {
-    if (confirm("Remove these assets from the gallery?")) {
-      apiFetch(`/api/gallery/${id}`, { method: "DELETE" })
-        .then(() => fetchItems())
-        .catch((err) => toast.error(formatApiError(err)));
-    }
+  function handleDeleteRequest(item: any) {
+    setDeleteItem(item);
+    setDeleteOpen(true);
+  }
+
+  function handleDeleteConfirm() {
+    if (!deleteItem) return;
+    apiFetch(`/api/gallery/${deleteItem.id}`, { method: "DELETE" })
+      .then(() => {
+        setDeleteOpen(false);
+        setDeleteItem(null);
+        fetchItems();
+      })
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
   function handleEdit(item: any) {
     setEditItem(item);
     setEditOpen(true);
+  }
+
+  function handleView(item: any) {
+    setViewItem(item);
+    setViewOpen(true);
   }
 
   function handleUpdate(form: HTMLFormElement) {
@@ -120,7 +137,7 @@ export default function Page() {
                     <button onClick={() => handleEdit(it)} className="bg-white p-2 text-[#0D2323] hover:text-[#00A991] mr-2">
                       <Pencil size={16} />
                     </button>
-                    <button className="bg-white p-2 text-[#0D2323] hover:text-[#00A991]">
+                    <button onClick={() => handleView(it)} className="bg-white p-2 text-[#0D2323] hover:text-[#00A991]">
                       <Maximize2 size={16} />
                     </button>
                   </div>
@@ -135,7 +152,7 @@ export default function Page() {
                       {new Date(it.createdAt).toLocaleDateString("en-GB")} • {it.images?.length || 0} FILES
                     </p>
                   </div>
-                  <button onClick={() => handleDelete(it.id)} className="text-gray-300 hover:text-red-600 transition-colors p-1">
+                  <button onClick={() => handleDeleteRequest(it)} className="text-gray-300 hover:text-red-600 transition-colors p-1">
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -181,6 +198,60 @@ export default function Page() {
                 <button type="submit" className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black tracking-[0.2em] hover:bg-[#00A991] transition-all">SAVE CHANGES</button>
               </div>
             </form>
+          </Modal>
+
+          {/* DELETE CONFIRMATION */}
+          <Modal open={deleteOpen} onClose={() => { setDeleteOpen(false); setDeleteItem(null); }} title="DELETE GALLERY">
+            <div className="space-y-4">
+              <p className="text-sm text-[#0D2323]">Are you sure you want to delete this gallery?</p>
+              {deleteItem?.title && (
+                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+                  {deleteItem.title}
+                </p>
+              )}
+              <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
+                <button type="button" onClick={() => { setDeleteOpen(false); setDeleteItem(null); }} className="text-[10px] font-black tracking-[0.2em] text-gray-400">
+                  CANCEL
+                </button>
+                <button type="button" onClick={handleDeleteConfirm} className="bg-red-600 text-white px-8 py-3 text-[10px] font-black tracking-[0.2em] hover:bg-red-700 transition-all">
+                  DELETE
+                </button>
+              </div>
+            </div>
+          </Modal>
+
+          {/* VIEW MODAL */}
+          <Modal open={viewOpen} onClose={() => { setViewOpen(false); setViewItem(null); }} title="GALLERY PREVIEW">
+            {viewItem && (
+              <div className="space-y-4">
+                <div className="text-[12px] font-black uppercase tracking-[0.2em] text-[#0D2323]">
+                  {viewItem.title || "Untitled Gallery"}
+                </div>
+                <div className="text-[10px] text-gray-400">
+                  {new Date(viewItem.createdAt).toLocaleDateString("en-GB")}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {Array.isArray(viewItem.images) && viewItem.images.length > 0 ? (
+                    viewItem.images.map((img: any, idx: number) => (
+                      <div key={idx} className="border border-[#F2F2F2] overflow-hidden">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={resolveAssetUrl(img.url)} alt={img.caption || viewItem.title} className="w-full h-56 object-cover" />
+                        {img.caption && (
+                          <div className="p-2 text-[10px] text-gray-500">{img.caption}</div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-[11px] text-gray-400">No images in this gallery.</div>
+                  )}
+                </div>
+                <div className="flex justify-end pt-2">
+                  <button type="button" onClick={() => { setViewOpen(false); setViewItem(null); }} className="bg-[#0D2323] text-white px-6 py-2 text-[10px] font-black tracking-[0.2em] hover:bg-[#00A991] transition-all">
+                    CLOSE
+                  </button>
+                </div>
+              </div>
+            )}
           </Modal>
         </div>
       </main>

@@ -10,11 +10,12 @@ import {
   Search,
   ExternalLink
 } from "lucide-react";
-import { logout } from "../../../lib/apiClient";
+import { apiFetch, logout } from "../../../lib/apiClient";
 
 export default function Header() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -26,6 +27,12 @@ export default function Header() {
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    apiFetch<any>("/api/messages?unread=true&pageSize=1")
+      .then((res) => setUnreadCount(Number(res.total || 0)))
+      .catch(() => setUnreadCount(0));
   }, []);
 
   if (pathname === "/") return null;
@@ -60,9 +67,16 @@ export default function Header() {
           {/* Top nav removed per request */}
 
           <div className="flex items-center gap-4">
-            <button className="relative p-2 text-[#0D2323] hover:text-[#00A991] transition-colors">
+            <button
+              onClick={() => router.push("/dashboard/messages")}
+              className="relative p-2 text-[#0D2323] hover:text-[#00A991] transition-colors"
+            >
               <Bell size={20} strokeWidth={1.5} />
-              <span className="absolute top-2 right-2 w-1.5 h-1.5 bg-[#00A991] rounded-full" />
+              {unreadCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 min-w-[18px] h-[18px] px-1 rounded-full bg-[#00A991] text-[9px] font-black text-white flex items-center justify-center">
+                  {unreadCount > 99 ? "99+" : unreadCount}
+                </span>
+              )}
             </button>
 
             <div className="h-8 w-px bg-gray-100 mx-2" />
