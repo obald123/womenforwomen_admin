@@ -10,6 +10,11 @@ export default function Page() {
   const [news, setNews] = useState<any[]>([]);
   const [openAdd, setOpenAdd] = useState(false);
   const [openCompose, setOpenCompose] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmPayload, setConfirmPayload] = useState<{ subject: string; content: string } | null>(null);
+  const [sending, setSending] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<any | null>(null);
 
   function fetchSubs() {
     apiFetch<any>("/api/newsletter/subscribers")
@@ -45,10 +50,19 @@ export default function Page() {
       .catch((err) => toast.error(formatApiError(err)));
   }
 
-  function removeSubscriber(id: string) {
-    if (!confirm("Remove subscriber?")) return;
-    apiFetch(`/api/newsletter/unsubscribe/${id}`, { method: "DELETE" })
-      .then(() => fetchSubs())
+  function removeSubscriberRequest(item: any) {
+    setDeleteItem(item);
+    setDeleteOpen(true);
+  }
+
+  function removeSubscriberConfirm() {
+    if (!deleteItem) return;
+    apiFetch(`/api/newsletter/unsubscribe/${deleteItem.id}`, { method: "DELETE" })
+      .then(() => {
+        setDeleteOpen(false);
+        setDeleteItem(null);
+        fetchSubs();
+      })
       .catch((err) => toast.error(formatApiError(err)));
   }
 
@@ -65,19 +79,30 @@ export default function Page() {
     const subject = (fd.get("subject") as string) || "";
     const content = (fd.get("content") as string) || "";
     if (!subject || !content) return toast.error("Fill subject and body");
-
-    sendToSubscribers(subject, content)
-      .then(() => setOpenCompose(false))
-      .catch((err) => toast.error(formatApiError(err)));
+    setConfirmPayload({ subject, content });
+    setConfirmOpen(true);
   }
 
   function sendArticle(articleId: string) {
     const article = news.find((n) => n.id === articleId);
     if (!article) return toast.error("Article not found");
-    if (!confirm(`Send article "${article.title}" to all subscribers?`)) return;
     const subject = article.title || "News update";
     const content = article.content || article.excerpt || "";
-    sendToSubscribers(subject, content).catch((err) => toast.error(formatApiError(err)));
+    setConfirmPayload({ subject, content });
+    setConfirmOpen(true);
+  }
+
+  function confirmSend() {
+    if (!confirmPayload) return;
+    setSending(true);
+    sendToSubscribers(confirmPayload.subject, confirmPayload.content)
+      .then(() => {
+        setOpenCompose(false);
+        setConfirmOpen(false);
+        setConfirmPayload(null);
+      })
+      .catch((err) => toast.error(formatApiError(err)))
+      .finally(() => setSending(false));
   }
 
   return (
@@ -122,13 +147,13 @@ export default function Page() {
                       <div className="text-[12px] font-black">{a.title || "Untitled"}</div>
                       <div className="text-[11px] text-gray-400">{String(a.content || a.excerpt || "").substring(0, 120)}...</div>
                     </div>
-                    <div>
+                  <div>
                       <button onClick={() => sendArticle(a.id)} className="bg-[#0D2323] text-white px-4 py-2 text-[11px] font-bold">Send</button>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
           </div>
 
           <div className="bg-white border border-[#F2F2F2] p-6">
@@ -148,7 +173,7 @@ export default function Page() {
                       <div className="text-[11px] text-gray-400">{s.email}</div>
                     </div>
                     <div>
-                      <button onClick={() => removeSubscriber(s.id)} className="text-gray-300 hover:text-red-600">
+                      <button onClick={() => removeSubscriberRequest(s)} className="text-gray-300 hover:text-red-600">
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -190,6 +215,40 @@ export default function Page() {
                 <button type="submit" className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black">Send to Subscribers</button>
               </div>
             </form>
+          </Modal>
+
+          <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="CONFIRM SEND">
+            <div className="space-y-4">
+              <p className="text-sm text-[#0D2323]">
+                You are about to send this email to all subscribers.
+              </p>
+              {confirmPayload?.subject && (
+                <div className="text-[11px] font-black uppercase tracking-[0.2em] text-gray-400">
+                  {confirmPayload.subject}
+                </div>
+              )}
+              <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
+                <button type="button" onClick={() => setConfirmOpen(false)} className="text-[10px] font-black text-gray-400">Cancel</button>
+                <button type="button" onClick={confirmSend} disabled={sending} className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black disabled:opacity-60">
+                  {sending ? "Sending..." : "Send Now"}
+                </button>
+              </div>
+            </div>
+          </Modal>
+
+          <Modal open={deleteOpen} onClose={() => { setDeleteOpen(false); setDeleteItem(null); }} title="REMOVE SUBSCRIBER">
+            <div className="space-y-4">
+              <p className="text-sm text-[#0D2323]">Are you sure you want to remove this subscriber?</p>
+              {deleteItem?.email && (
+                <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-gray-400">
+                  {deleteItem.email}
+                </p>
+              )}
+              <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
+                <button type="button" onClick={() => { setDeleteOpen(false); setDeleteItem(null); }} className="text-[10px] font-black text-gray-400">Cancel</button>
+                <button type="button" onClick={removeSubscriberConfirm} className="bg-red-600 text-white px-8 py-3 text-[10px] font-black">Remove</button>
+              </div>
+            </div>
           </Modal>
 
         </div>

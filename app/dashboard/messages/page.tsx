@@ -89,8 +89,16 @@ export default function MessagesPage() {
                 <div>
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <div className="text-[12px] font-black uppercase">{selected.name}</div>
-                      <div className="text-[10px] text-gray-400 mt-1">{selected.email}</div>
+                      <div className="text-[10px] font-black uppercase tracking-[0.2em] text-[#00A991]">
+                        New Partner Message
+                      </div>
+                      <div className="text-[18px] font-black text-[#0D2323] mt-2">
+                        You have received a new message from {selected.name}
+                      </div>
+                      <div className="text-[11px] text-gray-400 mt-2">
+                        {selected.email}
+                        {selected.phone ? ` • ${selected.phone}` : ""}
+                      </div>
                     </div>
                     <div className="flex items-center gap-3">
                       <button onClick={() => setDeleteOpen(true)} className="text-gray-300 hover:text-red-600">
@@ -100,9 +108,6 @@ export default function MessagesPage() {
                   </div>
 
                   <div className="space-y-3 text-[12px] text-[#0D2323]">
-                    {selected.phone && (
-                      <div><span className="font-bold">Phone:</span> {selected.phone}</div>
-                    )}
                     {selected.organization && (
                       <div><span className="font-bold">Organization:</span> {selected.organization}</div>
                     )}

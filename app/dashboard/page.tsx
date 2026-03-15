@@ -10,17 +10,19 @@ export default function Page() {
     gallery: 0,
     team: 0,
     subscribers: 0,
+    messages: 0,
   });
   const [recent, setRecent] = useState<any[]>([]);
 
   useEffect(() => {
     async function load() {
-      const [news, events, gallery, team, subscribers] = await Promise.all([
+      const [news, events, gallery, team, subscribers, messages] = await Promise.all([
         apiFetch<any>("/api/articles"),
         apiFetch<any>("/api/events"),
         apiFetch<any>("/api/gallery"),
         apiFetch<any>("/api/team"),
         apiFetch<any>("/api/newsletter/subscribers"),
+        apiFetch<any>("/api/messages"),
       ]);
 
       setCounts({
@@ -29,6 +31,7 @@ export default function Page() {
         gallery: gallery.total || gallery.data?.length || 0,
         team: team.total || team.data?.length || 0,
         subscribers: subscribers.data?.length || 0,
+        messages: messages.total || messages.data?.length || 0,
       });
       setRecent((news.data || []).slice(0, 6));
     }
@@ -87,13 +90,21 @@ export default function Page() {
               </div>
             </div>
 
-            <div className="bg-white border border-[#F2F2F2] p-6">
-              <div className="text-sm font-black text-gray-400 uppercase">Subscribers</div>
-              <div className="mt-4 text-3xl font-black">{counts.subscribers}</div>
-              <div className="mt-4">
-                <Link href="/dashboard/newsletter" className="text-[11px] font-bold text-[#00A991]">Manage subscribers</Link>
-              </div>
+          <div className="bg-white border border-[#F2F2F2] p-6">
+            <div className="text-sm font-black text-gray-400 uppercase">Subscribers</div>
+            <div className="mt-4 text-3xl font-black">{counts.subscribers}</div>
+            <div className="mt-4">
+              <Link href="/dashboard/newsletter" className="text-[11px] font-bold text-[#00A991]">Manage subscribers</Link>
             </div>
+          </div>
+
+          <div className="bg-white border border-[#F2F2F2] p-6">
+            <div className="text-sm font-black text-gray-400 uppercase">Messages</div>
+            <div className="mt-4 text-3xl font-black">{counts.messages}</div>
+            <div className="mt-4">
+              <Link href="/dashboard/messages" className="text-[11px] font-bold text-[#00A991]">View messages</Link>
+            </div>
+          </div>
           </div>
 
           <div className="bg-white border border-[#F2F2F2] p-6">

@@ -23,7 +23,8 @@ export default function Page() {
 
   function handleAdd(form: HTMLFormElement) {
     const fd = new FormData(form);
-    fd.append("category", "STAFF");
+    const category = String(fd.get("category") || "STAFF");
+    fd.set("category", category);
     fd.append("status", "PUBLISHED");
 
     apiFetch("/api/team", { method: "POST", body: fd })
@@ -50,7 +51,8 @@ export default function Page() {
   function handleUpdate(form: HTMLFormElement) {
     if (!editItem) return;
     const fd = new FormData(form);
-    fd.append("category", editItem.category || "STAFF");
+    const category = String(fd.get("category") || editItem.category || "STAFF");
+    fd.set("category", category);
     fd.append("status", editItem.status || "PUBLISHED");
     const photo = fd.get("photo");
     if (!(photo instanceof File) || photo.size === 0) {
@@ -136,6 +138,13 @@ export default function Page() {
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Role</label>
                 <input name="role" required className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all" />
               </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Category</label>
+                <select name="category" className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all bg-white">
+                  <option value="BOARD">Board</option>
+                  <option value="STAFF">Team</option>
+                </select>
+              </div>
 
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Bio</label>
@@ -164,6 +173,13 @@ export default function Page() {
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Role</label>
                 <input name="role" defaultValue={editItem?.role || ""} required className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Category</label>
+                <select name="category" defaultValue={editItem?.category || "STAFF"} className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all bg-white">
+                  <option value="BOARD">Board</option>
+                  <option value="STAFF">Team</option>
+                </select>
               </div>
 
               <div className="space-y-2">

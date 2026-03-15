@@ -16,6 +16,9 @@ export default function Header() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState<any[]>([]);
+  const [showResults, setShowResults] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -24,10 +27,26 @@ export default function Header() {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsOpen(false);
       }
+      if (!(event.target as HTMLElement).closest("#admin-search")) {
+        setShowResults(false);
+      }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
+  useEffect(() => {
+    if (!query || query.trim().length < 2) {
+      setResults([]);
+      return;
+    }
+    const handle = setTimeout(() => {
+      apiFetch<any>(`/api/search?q=${encodeURIComponent(query.trim())}`)
+        .then((res) => setResults(Array.isArray(res.data) ? res.data : []))
+        .catch(() => setResults([]));
+    }, 250);
+    return () => clearTimeout(handle);
+  }, [query]);
 
   useEffect(() => {
     apiFetch<any>("/api/messages?unread=true&pageSize=1")
@@ -52,13 +71,48 @@ export default function Header() {
             </span>
           </div>
 
-          <div className="hidden md:flex items-center relative group">
+          <div id="admin-search" className="hidden md:flex items-center relative group">
             <Search size={16} className="absolute left-0 text-[#0D2323]/30 group-focus-within:text-[#00A991] transition-colors" />
             <input 
               type="text" 
               placeholder="SEARCH RECORDS"
+              value={query}
+              onChange={(e) => {
+                setQuery(e.target.value);
+                setShowResults(true);
+              }}
+              onFocus={() => setShowResults(true)}
               className="bg-transparent pl-8 pr-4 py-2 text-[10px] font-bold tracking-[0.2em] text-[#0D2323] outline-none placeholder:text-gray-300 w-48 focus:w-64 transition-all"
             />
+            {showResults && query.trim().length >= 2 && (
+              <div className="absolute top-10 left-0 w-80 bg-white border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.08)] z-[120]">
+                {results.length === 0 ? (
+                  <div className="px-4 py-3 text-[10px] text-gray-400 font-bold uppercase tracking-[0.2em]">
+                    No results
+                  </div>
+                ) : (
+                  <ul>
+                    {results.map((r) => (
+                      <li key={`${r.type}-${r.id}`}>
+                        <button
+                          className="w-full text-left px-4 py-3 hover:bg-gray-50"
+                          onClick={() => {
+                            setShowResults(false);
+                            setQuery("");
+                            router.push(r.href);
+                          }}
+                        >
+                          <div className="text-[11px] font-black text-[#0D2323] uppercase">{r.title}</div>
+                          <div className="text-[10px] text-gray-400 uppercase tracking-[0.2em]">
+                            {r.type} {r.subtitle ? `• ${r.subtitle}` : ""}
+                          </div>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
