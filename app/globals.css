@@ -1,0 +1,41 @@
+@import "tailwindcss";
+
+:root {
+  --background: #ffffff;
+  --foreground: #1A1A1A;
+  --muted: #666666;
+  --primary: #00A991;
+  --primary-dark: #008472;
+  --accent: #C73D35;
+  --accent-dark: #B03530;
+  --font-montserrat: var(--font-montserrat);
+  --font-inter: var(--font-inter);
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-montserrat);
+  --font-heading: var(--font-montserrat);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-montserrat), var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+h1,h2,h3,h4,h5,h6 {
+  font-family: var(--font-montserrat), var(--font-inter), Arial, Helvetica, sans-serif;
+}
+
+a { color: var(--primary); }
+
+.btn-primary { background-color: var(--primary); color: #fff; }
