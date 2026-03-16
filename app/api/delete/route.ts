@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { deleteUpload } from "../../../../lib/data";
+import { deleteUpload } from "../../../lib/data";
 
 export async function POST(request: Request) {
   try {

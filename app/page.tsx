@@ -2,6 +2,7 @@
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Lock, User, ArrowRight, ShieldCheck } from "lucide-react";
+import Image from "next/image";
 import { login, formatApiError } from "../lib/apiClient";
 import { toast } from "react-toastify";
 
@@ -40,14 +41,16 @@ export default function LoginPage() {
         
         <div className="relative z-10 px-12 text-center">
           <div className="mb-8 flex justify-center">
-             <div className="p-4 bg-[#007A71] rounded-2xl shadow-2xl">
-                <ShieldCheck size={48} className="text-white" />
-             </div>
+            <div className="relative h-24 w-64">
+              <Image
+                src="/images/site/logo.png"
+                alt="Women for Women Rwanda"
+                fill
+                sizes="256px"
+                className="object-contain drop-shadow-xl"
+              />
+            </div>
           </div>
-          <h2 className="text-white text-4xl font-black tracking-tighter uppercase leading-none">
-            Women for <br />
-            <span className="text-[#00A991] font-light italic">Women</span>
-          </h2>
           <p className="mt-6 text-gray-400 max-w-sm mx-auto text-lg font-light leading-relaxed">
             Internal Administrative Portal for content management and impact reporting.
           </p>

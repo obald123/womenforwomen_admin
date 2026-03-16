@@ -1,6 +1,7 @@
 "use client";
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { 
   Newspaper, 
@@ -9,6 +10,7 @@ import {
   Users,
   Mail,
   MessageSquare,
+  Briefcase,
   ArrowLeft,
   ArrowRight,
   LayoutDashboard,
@@ -19,6 +21,7 @@ const mainNav = [
   { key: "news", label: "News & Articles", icon: Newspaper },
   { key: "events", label: "Events", icon: CalendarDays },
   { key: "messages", label: "Messages", icon: MessageSquare },
+  { key: "careers", label: "Careers", icon: Briefcase },
   { key: "gallery", label: "Gallery", icon: ImageIcon },
   { key: "team", label: "Team", icon: Users },
   { key: "newsletter", label: "Newsletter", icon: Mail },
@@ -26,39 +29,52 @@ const mainNav = [
 
 
 export default function Sidebar() {
+  const [isOpen, setIsOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const pathname = usePathname() || "";
+
+  React.useEffect(() => {
+    const onToggleMobile = () => setIsOpen((prev) => !prev);
+    window.addEventListener("admin-sidebar-toggle-mobile", onToggleMobile as EventListener);
+    return () => window.removeEventListener("admin-sidebar-toggle-mobile", onToggleMobile as EventListener);
+  }, []);
 
   if (pathname === "/") return null;
 
   return (
-    <aside 
-      className={`transition-all duration-700 cubic-bezier(0.16, 1, 0.3, 1) border-r border-[#F2F2F2] bg-white h-screen hidden lg:flex flex-col sticky top-0 z-[120] ${
-        isCollapsed ? "w-[72px]" : "w-[300px]"
-      }`}
-    >
+    <>
+      {isOpen && (
+        <button
+          aria-label="Close sidebar"
+          onClick={() => setIsOpen(false)}
+          className="fixed inset-0 z-[150] bg-black/40 lg:hidden"
+        />
+      )}
+      <aside
+        className={`transition-all duration-500 border-r border-[#F2F2F2] bg-white h-screen flex flex-col z-[160]
+          fixed top-0 left-0 lg:sticky
+          ${isOpen ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0
+          ${isCollapsed ? "lg:w-[88px]" : "lg:w-[300px]"} w-[300px]
+        `}
+      >
       {/* 1. BRAND AREA: High-Contrast & Bold */}
-      <div className={`h-24 flex items-center ${isCollapsed ? "justify-center" : "px-12"}`}>
-        <Link href="/dashboard" className="flex items-center gap-5 group">
-           <div className="relative flex h-10 w-10 items-center justify-center bg-[#0D2323] overflow-hidden">
-              <span className="text-white text-[12px] font-black z-10">W.</span>
-              <div className="absolute inset-0 bg-[#00A991] translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
-           </div>
-           {!isCollapsed && (
-             <div className="flex flex-col overflow-hidden">
-               <span className="text-[14px] font-[900] tracking-[0.3em] text-[#0D2323] animate-in slide-in-from-left duration-500">RWANDA</span>
-               <div className="h-[2px] w-full bg-[#00A991] mt-1 scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-500" />
-             </div>
-           )}
+      <div className={`h-24 flex items-center ${isCollapsed ? "lg:px-0 lg:justify-center" : "px-12"}`}>
+        <Link href="/dashboard" className="flex items-center gap-5">
+          <div className="relative h-10 w-32 lg:hidden">
+            <Image src="/images/site/logo.png" alt="Women for Women Rwanda" fill sizes="128px" className="object-contain" />
+          </div>
+          {!isCollapsed && (
+            <div className="relative h-10 w-32 hidden lg:block">
+              <Image src="/images/site/logo.png" alt="Women for Women Rwanda" fill sizes="128px" className="object-contain" />
+            </div>
+          )}
         </Link>
       </div>
 
       {/* 2. MAIN NAVIGATION: Spaced Hierarchy */}
       <div className="flex-1 flex flex-col justify-between pt-8">
         <nav className="space-y-1">
-          {!isCollapsed && (
-            <span className="px-12 text-[9px] font-black tracking-[0.4em] text-gray-300 block mb-6">MENU</span>
-          )}
+          <span className={`text-[9px] font-black tracking-[0.4em] text-gray-300 block mb-6 ${isCollapsed ? "lg:text-center lg:px-0" : "px-12"}`}>MENU</span>
           
           {mainNav.map((item) => {
             const Icon = item.icon;
@@ -69,8 +85,9 @@ export default function Sidebar() {
                 key={item.key}
                 item={item} 
                 active={active} 
-                isCollapsed={isCollapsed} 
                 Icon={Icon} 
+                onClick={() => setIsOpen(false)}
+                collapsed={isCollapsed}
               />
             );
           })}
@@ -79,38 +96,38 @@ export default function Sidebar() {
         {/* 3. SECONDARY NAV removed per request */}
       </div>
 
-      {/* 4. FOOTER: The Reveal/Hide Mechanism */}
-      <button 
-        onClick={() => setIsCollapsed(!isCollapsed)}
-        className="h-16 border-t border-[#F2F2F2] flex items-center justify-center hover:bg-gray-50 transition-colors group"
-      >
-        {isCollapsed ? (
-          <ArrowRight size={16} className="text-[#0D2323] group-hover:translate-x-1 transition-transform" />
-        ) : (
-          <div className="flex items-center gap-3 text-[#0D2323]">
-            <ArrowLeft size={14} className="group-hover:-translate-x-1 transition-transform" />
-            <span className="text-[10px] font-black tracking-[0.4em]">MINIMIZE</span>
-          </div>
-        )}
-      </button>
+        {/* 4. FOOTER: The Reveal/Hide Mechanism */}
+      <div className="h-16 border-t border-[#F2F2F2] flex items-center justify-center px-4">
+        <button
+          type="button"
+          onClick={() => setIsCollapsed((prev) => !prev)}
+          className="hidden lg:inline-flex items-center justify-center h-9 w-9 rounded border border-gray-100 text-[#0D2323] hover:text-[#00A991] transition-colors"
+          aria-label={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+        >
+          {isCollapsed ? <ArrowRight size={16} /> : <ArrowLeft size={16} />}
+        </button>
+      </div>
     </aside>
+    </>
   );
 }
 
-function SidebarLink({ item, active, isCollapsed, Icon }: any) {
+function SidebarLink({ item, active, Icon, onClick, collapsed }: any) {
   return (
     <Link
       href={`/dashboard/${item.key === "overview" ? "" : item.key}`}
-      className={`group relative flex items-center transition-all duration-500 ${
-        isCollapsed ? "justify-center py-6" : "px-12 py-4"
-      } ${
+      onClick={onClick}
+      className={`group relative flex items-center transition-all duration-500 py-4 ${
         active ? "text-[#00A991]" : "text-[#0D2323]/40 hover:text-[#0D2323]"
-      }`}
+      } ${collapsed ? "lg:px-0 lg:justify-center" : "px-12"}`}
     >
       <Icon size={18} strokeWidth={active ? 2.5 : 1.5} className="z-10 transition-transform group-hover:scale-110" />
       
-      {!isCollapsed && (
-        <span className="ml-6 text-[11px] font-black tracking-[0.25em] uppercase z-10">
+      <span className="ml-6 text-[11px] font-black tracking-[0.25em] uppercase z-10 lg:hidden">
+        {item.label}
+      </span>
+      {!collapsed && (
+        <span className="ml-6 text-[11px] font-black tracking-[0.25em] uppercase z-10 hidden lg:inline">
           {item.label}
         </span>
       )}
@@ -121,7 +138,7 @@ function SidebarLink({ item, active, isCollapsed, Icon }: any) {
       }`} />
       
       {/* Background slide for active item */}
-      {active && !isCollapsed && (
+      {active && (
         <div className="absolute inset-0 bg-gray-50/50 -z-0 animate-in fade-in duration-700" />
       )}
     </Link>

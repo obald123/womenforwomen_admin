@@ -24,7 +24,7 @@ export default function DashboardClient() {
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white">
       <Header />
       <div className="flex">
-        <Sidebar active={section} onSelect={(s) => setSection(s as any)} />
+        <Sidebar />
         <main className="flex-1 p-6">
           {section === "news" && (
             <section>

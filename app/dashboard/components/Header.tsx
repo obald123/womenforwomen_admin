@@ -8,8 +8,10 @@ import {
   Settings, 
   Bell, 
   Search,
-  ExternalLink
+  ExternalLink,
+  Menu
 } from "lucide-react";
+import Image from "next/image";
 import { apiFetch, logout } from "../../../lib/apiClient";
 
 export default function Header() {
@@ -61,14 +63,20 @@ export default function Header() {
       <div className="mx-auto flex h-full max-w-[1440px] items-center justify-between px-6 lg:px-12">
         
         {/* LEFT: Logo & Context */}
-        <div className="flex items-center gap-12">
-          <div className="flex flex-col">
-            <span className="text-[14px] font-black leading-tight tracking-[0.2em] text-[#0D2323]">
-              WOMEN FOR WOMEN
-            </span>
-            <span className="text-[11px] font-medium tracking-[0.3em] text-[#00A991]">
-              RWANDA <span className="text-gray-300 mx-1">/</span> <span className="text-gray-400">ADMIN</span>
-            </span>
+        <div className="flex items-center gap-4 lg:gap-12">
+          <button
+            type="button"
+            onClick={() => window.dispatchEvent(new CustomEvent("admin-sidebar-toggle-mobile"))}
+            className="inline-flex items-center justify-center p-2 text-[#0D2323] border border-gray-100 rounded lg:hidden"
+            aria-label="Open sidebar"
+          >
+            <Menu size={18} />
+          </button>
+          <div className="hidden md:flex items-center gap-4">
+            <div className="relative h-8 w-28">
+              <Image src="/images/site/logo.png" alt="Women for Women Rwanda" fill sizes="112px" className="object-contain" />
+            </div>
+            <span className="text-[11px] font-black tracking-[0.3em] text-[#00A991]">ADMIN</span>
           </div>
 
           <div id="admin-search" className="hidden md:flex items-center relative group">
@@ -117,7 +125,7 @@ export default function Header() {
         </div>
 
         {/* RIGHT: Navigation & Profile */}
-        <div className="flex items-center gap-6 lg:gap-10">
+        <div className="hidden md:flex items-center gap-6 lg:gap-10">
           {/* Top nav removed per request */}
 
           <div className="flex items-center gap-4">

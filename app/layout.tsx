@@ -17,8 +17,11 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Women — Admin",
+  title: "Women for Women Rwanda_Admin",
   description: "Admin dashboard",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
 
 export default function RootLayout({
