@@ -34,6 +34,7 @@ export default function Page() {
     const fd = new FormData(form);
     const title = String(fd.get("title") || "");
     const content = String(fd.get("content") || "");
+    const category = String(fd.get("category") || "NEWS");
     if (content.length < 20) {
       toast.error("Content must be at least 20 characters");
       return;
@@ -42,7 +43,7 @@ export default function Page() {
     payload.append("title", title);
     payload.append("content", content);
     payload.append("excerpt", content.slice(0, 140));
-    payload.append("category", "NEWS");
+    payload.append("category", category);
     payload.append("status", "PUBLISHED");
     const cover = fd.get("coverImage");
     if (cover instanceof File && cover.size > 0) payload.append("coverImage", cover);
@@ -86,6 +87,7 @@ export default function Page() {
     const fd = new FormData(form);
     const title = String(fd.get("title") || "");
     const content = String(fd.get("content") || "");
+    const category = String(fd.get("category") || editItem.category || "NEWS");
     if (content.length < 20) {
       toast.error("Content must be at least 20 characters");
       return;
@@ -94,7 +96,7 @@ export default function Page() {
     payload.append("title", title);
     payload.append("content", content);
     payload.append("excerpt", content.slice(0, 140));
-    payload.append("category", editItem.category || "NEWS");
+    payload.append("category", category);
     payload.append("status", editItem.status || "PUBLISHED");
     const cover = fd.get("coverImage");
     if (cover instanceof File && cover.size > 0) payload.append("coverImage", cover);
@@ -219,6 +221,19 @@ export default function Page() {
                 <input name="title" required className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all uppercase tracking-widest" />
               </div>
               <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Category</label>
+                <select
+                  name="category"
+                  defaultValue="NEWS"
+                  className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all uppercase tracking-widest bg-white"
+                >
+                  <option value="NEWS">NEWS</option>
+                  <option value="STORY">STORY (Success Story)</option>
+                  <option value="PRESS">PRESS</option>
+                  <option value="BLOG">BLOG</option>
+                </select>
+              </div>
+              <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Article Content</label>
                 <textarea name="content" required rows={5} className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-medium outline-none transition-all" />
               </div>
@@ -239,6 +254,19 @@ export default function Page() {
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Headline</label>
                 <input name="title" defaultValue={editItem?.title || ""} required className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all uppercase tracking-widest" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Category</label>
+                <select
+                  name="category"
+                  defaultValue={editItem?.category || "NEWS"}
+                  className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all uppercase tracking-widest bg-white"
+                >
+                  <option value="NEWS">NEWS</option>
+                  <option value="STORY">STORY (Success Story)</option>
+                  <option value="PRESS">PRESS</option>
+                  <option value="BLOG">BLOG</option>
+                </select>
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Article Content</label>
