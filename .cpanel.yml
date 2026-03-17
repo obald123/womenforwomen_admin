@@ -1,0 +1,38 @@
+---
+deployment:
+  tasks:
+    - echo "Starting admin deployment..."
+    - set -e
+    - export DEPLOYPATH=/home/username/public_html/admin
+    - echo "Deploying to $DEPLOYPATH"
+
+    - echo "Installing dependencies..."
+    - npm install
+
+    - echo "Building admin..."
+    - npm run build
+
+    - echo "Preparing build output..."
+    - if [ -d "out" ]; then export BUILD_DIR=out; else export BUILD_DIR=build; fi
+    - echo "Using build dir: $BUILD_DIR"
+
+    - echo "Creating deployment directory..."
+    - mkdir -p $DEPLOYPATH
+
+    - echo "Syncing build to public_html/admin (no delete)..."
+    - rsync -a --exclude ".env" --exclude ".git" $BUILD_DIR/ $DEPLOYPATH/
+
+    - echo "Writing SPA .htaccess..."
+    - |
+      cat > $DEPLOYPATH/.htaccess << 'EOF'
+      RewriteEngine On
+      RewriteCond %{REQUEST_FILENAME} !-f
+      RewriteCond %{REQUEST_FILENAME} !-d
+      RewriteRule ^ index.html [L]
+      EOF
+
+    - echo "Setting permissions..."
+    - find $DEPLOYPATH -type d -exec chmod 755 {} \;
+    - find $DEPLOYPATH -type f -exec chmod 644 {} \;
+
+    - echo "Admin deployment complete."
