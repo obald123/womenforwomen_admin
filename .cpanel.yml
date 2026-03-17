@@ -3,7 +3,9 @@ deployment:
   tasks:
     - echo "Starting admin deployment..."
     - set -e
-    - export DEPLOYPATH=/home/username/public_html/admin
+    - export DEPLOYPATH=/home1/womenfor/repositories/womenforwomen_admin 
+   
+Remote URL
     - echo "Deploying to $DEPLOYPATH"
 
     - echo "Installing dependencies..."

@@ -14,6 +14,8 @@ import {
 import Image from "next/image";
 import { apiFetch, logout } from "../../../lib/apiClient";
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://womenforwomenrwanda.org";
+
 export default function Header() {
   const pathname = usePathname();
   const [isOpen, setIsOpen] = useState(false);
@@ -163,7 +165,15 @@ export default function Header() {
               {isOpen && (
                 <div className="absolute right-0 mt-4 w-52 bg-white border border-gray-100 shadow-[0_20px_50px_rgba(0,0,0,0.1)] py-2 z-[110]">
                   <DropdownItem icon={<Settings size={14}/>} label="SETTINGS" />
-                  <DropdownItem icon={<ExternalLink size={14}/>} label="LIVE SITE" />
+                  <DropdownItem
+                    icon={<ExternalLink size={14}/>}
+                    label="LIVE SITE"
+                    onClick={() => {
+                      if (typeof window !== "undefined") {
+                        window.open(SITE_URL, "_blank", "noopener,noreferrer");
+                      }
+                    }}
+                  />
                   <div className="h-px bg-gray-50 my-2 mx-4" />
                   <button 
                     onClick={() => {
@@ -192,9 +202,13 @@ function HeaderLink({ label, active = false }: { label: string, active?: boolean
   );
 }
 
-function DropdownItem({ icon, label }: { icon: React.ReactNode, label: string }) {
+function DropdownItem({ icon, label, onClick }: { icon: React.ReactNode, label: string, onClick?: () => void }) {
   return (
-    <button className="w-full flex items-center gap-3 px-6 py-3 text-[10px] font-bold text-[#0D2323] hover:bg-gray-50 tracking-[0.2em] transition-colors">
+    <button
+      type="button"
+      onClick={onClick}
+      className="w-full flex items-center gap-3 px-6 py-3 text-[10px] font-bold text-[#0D2323] hover:bg-gray-50 tracking-[0.2em] transition-colors"
+    >
       {icon}
       <span>{label}</span>
     </button>

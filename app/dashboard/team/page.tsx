@@ -10,9 +10,11 @@ export default function Page() {
   const [open, setOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editItem, setEditItem] = useState<any | null>(null);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<any | null>(null);
 
   function fetchItems() {
-    apiFetch<any>("/api/team")
+    apiFetch<any>("/api/team?status=PUBLISHED")
       .then((res) => setItems(Array.isArray(res.data) ? res.data : []))
       .catch(() => setItems([]));
   }
@@ -35,12 +37,20 @@ export default function Page() {
       .catch((err) => toast.error(formatApiError(err)));
   }
 
-  function handleDelete(id: string) {
-    if (confirm("Remove team member?")) {
-      apiFetch(`/api/team/${id}`, { method: "DELETE" })
-        .then(() => fetchItems())
-        .catch((err) => toast.error(formatApiError(err)));
-    }
+  function handleDeleteRequest(item: any) {
+    setDeleteItem(item);
+    setDeleteOpen(true);
+  }
+
+  function handleDeleteConfirm() {
+    if (!deleteItem) return;
+    apiFetch(`/api/team/${deleteItem.id}`, { method: "DELETE" })
+      .then(() => {
+        setDeleteOpen(false);
+        setDeleteItem(null);
+        setItems((prev) => prev.filter((i) => i.id !== deleteItem.id));
+      })
+      .catch((err) => toast.error(formatApiError(err)));
   }
 
   function handleEdit(item: any) {
@@ -117,7 +127,7 @@ export default function Page() {
                     <button onClick={() => handleEdit(it)} className="text-gray-300 hover:text-[#0D2323]">
                       <Pencil size={16} />
                     </button>
-                    <button onClick={() => handleDelete(it.id)} className="text-gray-300 hover:text-red-600">
+                    <button onClick={() => handleDeleteRequest(it)} className="text-gray-300 hover:text-red-600">
                       <Trash2 size={16} />
                     </button>
                   </div>
@@ -197,6 +207,27 @@ export default function Page() {
                 <button type="submit" className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black tracking-[0.2em] hover:bg-[#00A991] transition-all">SAVE CHANGES</button>
               </div>
             </form>
+          </Modal>
+
+          <Modal open={deleteOpen} onClose={() => { setDeleteOpen(false); setDeleteItem(null); }} title="DELETE TEAM MEMBER">
+            <div className="space-y-4">
+              <p className="text-sm text-[#0D2323]">
+                Are you sure you want to delete this team member?
+              </p>
+              {deleteItem?.name && (
+                <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400">
+                  {deleteItem.name}
+                </p>
+              )}
+              <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
+                <button type="button" onClick={() => { setDeleteOpen(false); setDeleteItem(null); }} className="text-[10px] font-black tracking-[0.2em] text-gray-400">
+                  CANCEL
+                </button>
+                <button type="button" onClick={handleDeleteConfirm} className="bg-red-600 text-white px-8 py-3 text-[10px] font-black tracking-[0.2em] hover:bg-red-700 transition-all">
+                  DELETE
+                </button>
+              </div>
+            </div>
           </Modal>
 
         </div>
