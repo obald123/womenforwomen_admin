@@ -17,10 +17,10 @@ export default function Page() {
   useEffect(() => {
     async function load() {
       const [news, events, gallery, team, subscribers, messages] = await Promise.all([
-        apiFetch<any>("/api/articles"),
-        apiFetch<any>("/api/events"),
-        apiFetch<any>("/api/gallery"),
-        apiFetch<any>("/api/team"),
+        apiFetch<any>("/api/articles?status=PUBLISHED&pageSize=100"),
+        apiFetch<any>("/api/events?status=PUBLISHED&pageSize=100"),
+        apiFetch<any>("/api/gallery?status=PUBLISHED&pageSize=100"),
+        apiFetch<any>("/api/team?status=PUBLISHED&pageSize=100"),
         apiFetch<any>("/api/newsletter/subscribers"),
         apiFetch<any>("/api/messages"),
       ]);

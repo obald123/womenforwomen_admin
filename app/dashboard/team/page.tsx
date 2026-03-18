@@ -15,7 +15,14 @@ export default function Page() {
 
   function fetchItems() {
     apiFetch<any>("/api/team?status=PUBLISHED&pageSize=100")
-      .then((res) => setItems(Array.isArray(res.data) ? res.data : []))
+      .then((res) => {
+        const data = Array.isArray(res.data) ? res.data : [];
+        const sorted = data.sort(
+          (a: any, b: any) =>
+            new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
+        );
+        setItems(sorted);
+      })
       .catch(() => setItems([]));
   }
 
