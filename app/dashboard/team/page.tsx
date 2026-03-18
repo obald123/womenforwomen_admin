@@ -14,7 +14,7 @@ export default function Page() {
   const [deleteItem, setDeleteItem] = useState<any | null>(null);
 
   function fetchItems() {
-    apiFetch<any>("/api/team?status=PUBLISHED")
+    apiFetch<any>("/api/team?status=PUBLISHED&pageSize=100")
       .then((res) => setItems(Array.isArray(res.data) ? res.data : []))
       .catch(() => setItems([]));
   }
