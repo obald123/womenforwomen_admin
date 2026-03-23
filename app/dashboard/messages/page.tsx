@@ -74,7 +74,10 @@ export default function MessagesPage() {
                         <div className={`h-2 w-2 rounded-full ${item.isRead ? "bg-gray-200" : "bg-[#00A991]"}`} />
                         <div>
                           <div className="text-[12px] font-black uppercase text-[#0D2323]">{item.name}</div>
-                          <div className="text-[10px] text-gray-400 mt-1">{item.email}</div>
+                          <div className="text-[10px] text-gray-400 mt-1">
+                            {item.email}
+                            {item.phone ? ` • ${item.phone}` : ""}
+                          </div>
                         </div>
                       </div>
                       <div className="text-[10px] text-gray-400">{formatDate(item.createdAt)}</div>

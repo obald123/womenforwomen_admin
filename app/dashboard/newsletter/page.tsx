@@ -3,6 +3,7 @@ import React, { useEffect, useState } from "react";
 import { Mail, Plus, Send, Trash2 } from "lucide-react";
 import Modal from "../components/Modal";
 import { apiFetch, formatApiError } from "../../../lib/apiClient";
+import { sendEmail } from "../../../lib/emailjsClient";
 import { toast } from "react-toastify";
 
 export default function Page() {
@@ -74,6 +75,23 @@ export default function Page() {
     await apiFetch(`/api/newsletter/send/${campaign.data.id}`, { method: "POST" });
   }
 
+  async function sendToSubscribersEmailJS(subject: string, content: string) {
+    const templateId = process.env.NEXT_PUBLIC_EMAILJS_TEMPLATE_NEWSLETTER_SEND;
+    if (!templateId) return;
+
+    for (const s of subs) {
+      await sendEmail({
+        templateId,
+        variables: {
+          to_email: s.email,
+          to_name: s.name || s.email,
+          subject,
+          message: content,
+        },
+      });
+    }
+  }
+
   function sendNewsletter(form: HTMLFormElement) {
     const fd = new FormData(form);
     const subject = (fd.get("subject") as string) || "";
@@ -95,8 +113,15 @@ export default function Page() {
   function confirmSend() {
     if (!confirmPayload) return;
     setSending(true);
-    sendToSubscribers(confirmPayload.subject, confirmPayload.content)
-      .then(() => {
+    Promise.allSettled([
+      sendToSubscribers(confirmPayload.subject, confirmPayload.content),
+      sendToSubscribersEmailJS(confirmPayload.subject, confirmPayload.content),
+    ])
+      .then((results) => {
+        const backendResult = results[0];
+        if (backendResult.status === "rejected") {
+          throw backendResult.reason;
+        }
         setOpenCompose(false);
         setConfirmOpen(false);
         setConfirmPayload(null);

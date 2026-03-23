@@ -24,11 +24,24 @@ export default function Page() {
   useEffect(() => {
     fetchItems();
   }, []);
+  function formatDateInput(value?: string | null) {
+    if (!value) return "";
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "";
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, "0");
+    const day = String(d.getDate()).padStart(2, "0");
+    return `${y}-${m}-${day}`;
+  }
 
   function handleAdd(form: HTMLFormElement) {
     const fd = new FormData(form);
     fd.append("layout", "GRID");
     fd.append("status", "PUBLISHED");
+    const publishedAt = String(fd.get("publishedAt") || "").trim();
+    if (!publishedAt) {
+      fd.delete("publishedAt");
+    }
 
     apiFetch("/api/gallery", { method: "POST", body: fd })
       .then(() => {
@@ -68,12 +81,14 @@ export default function Page() {
     if (!editItem) return;
     const fd = new FormData(form);
     const title = String(fd.get("title") || "");
+    const publishedAt = String(fd.get("publishedAt") || "").trim();
     apiFetch(`/api/gallery/${editItem.id}`, {
       method: "PATCH",
       body: JSON.stringify({
         title,
         layout: editItem.layout,
         status: editItem.status,
+        ...(publishedAt ? { publishedAt } : {}),
       }),
     })
       .then(() => {
@@ -149,7 +164,7 @@ export default function Page() {
                       {it.title || "UNTITLED ASSET"}
                     </h3>
                     <p className="text-[9px] font-bold text-[#00A991] tracking-[0.1em]">
-                      {new Date(it.createdAt).toLocaleDateString("en-GB")} • {it.images?.length || 0} FILES
+                      {new Date(it.publishedAt || it.createdAt).toLocaleDateString("en-GB")} • {(it.images?.length || 0) + (it.videos?.length || 0)} ASSETS
                     </p>
                   </div>
                   <button onClick={() => handleDeleteRequest(it)} className="text-gray-300 hover:text-red-600 transition-colors p-1">
@@ -167,6 +182,10 @@ export default function Page() {
                 <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Gallery Title</label>
                 <input name="title" required placeholder="E.G. KIGALI WORKSHOP 2026" className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none uppercase tracking-widest" />
               </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Publish Date</label>
+                <input type="date" name="publishedAt" className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none uppercase tracking-widest" />
+              </div>
 
               <div className="relative border-2 border-dashed border-gray-200 p-12 text-center group hover:border-[#00A991] transition-colors">
                 <input type="file" name="images" accept="image/*" multiple className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
@@ -174,6 +193,15 @@ export default function Page() {
                   <UploadCloud size={32} className="text-gray-300 group-hover:text-[#00A991] transition-colors" />
                   <span className="text-[10px] font-black tracking-[0.2em] text-[#0D2323] uppercase">Drop assets here or click to browse</span>
                   <span className="text-[9px] font-bold text-gray-400">JPG, PNG, WEBP (MAX 10MB)</span>
+                </div>
+              </div>
+
+              <div className="relative border-2 border-dashed border-gray-200 p-12 text-center group hover:border-[#00A991] transition-colors">
+                <input type="file" name="videos" accept="video/*" multiple className="absolute inset-0 w-full h-full opacity-0 cursor-pointer" />
+                <div className="flex flex-col items-center gap-3">
+                  <UploadCloud size={32} className="text-gray-300 group-hover:text-[#00A991] transition-colors" />
+                  <span className="text-[10px] font-black tracking-[0.2em] text-[#0D2323] uppercase">Drop videos here or click to browse</span>
+                  <span className="text-[9px] font-bold text-gray-400">MP4, WEBM, MOV (MAX 25MB)</span>
                 </div>
               </div>
 
@@ -192,6 +220,15 @@ export default function Page() {
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Gallery Title</label>
                 <input name="title" defaultValue={editItem?.title || ""} required className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none uppercase tracking-widest" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Publish Date</label>
+                <input
+                  type="date"
+                  name="publishedAt"
+                  defaultValue={formatDateInput(editItem?.publishedAt || editItem?.createdAt)}
+                  className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none uppercase tracking-widest"
+                />
               </div>
               <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
                 <button type="button" onClick={() => { setEditOpen(false); setEditItem(null); }} className="text-[10px] font-black tracking-[0.3em] text-gray-400">CANCEL</button>
@@ -243,6 +280,26 @@ export default function Page() {
                     ))
                   ) : (
                     <div className="text-[11px] text-gray-400">No images in this gallery.</div>
+                  )}
+                </div>
+
+                <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {Array.isArray(viewItem.videos) && viewItem.videos.length > 0 ? (
+                    viewItem.videos.map((vid: any, idx: number) => (
+                      <div key={`video-${idx}`} className="border border-[#F2F2F2] overflow-hidden">
+                        <video
+                          src={resolveAssetUrl(vid.url)}
+                          controls
+                          preload="metadata"
+                          className="w-full h-56 object-cover"
+                        />
+                        {vid.caption && (
+                          <div className="p-2 text-[10px] text-gray-500">{vid.caption}</div>
+                        )}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="text-[11px] text-gray-400">No videos in this gallery.</div>
                   )}
                 </div>
                 <div className="flex justify-end pt-2">

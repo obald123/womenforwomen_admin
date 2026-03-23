@@ -35,6 +35,7 @@ export default function Page() {
     const title = String(fd.get("title") || "");
     const content = String(fd.get("content") || "");
     const category = String(fd.get("category") || "NEWS");
+    const publishDate = String(fd.get("publishDate") || "");
     if (content.length < 20) {
       toast.error("Content must be at least 20 characters");
       return;
@@ -45,6 +46,7 @@ export default function Page() {
     payload.append("excerpt", content.slice(0, 140));
     payload.append("category", category);
     payload.append("status", "PUBLISHED");
+    if (publishDate) payload.append("publishedAt", new Date(publishDate).toISOString());
     const cover = fd.get("coverImage");
     if (cover instanceof File && cover.size > 0) payload.append("coverImage", cover);
 
@@ -88,6 +90,7 @@ export default function Page() {
     const title = String(fd.get("title") || "");
     const content = String(fd.get("content") || "");
     const category = String(fd.get("category") || editItem.category || "NEWS");
+    const publishDate = String(fd.get("publishDate") || "");
     if (content.length < 20) {
       toast.error("Content must be at least 20 characters");
       return;
@@ -98,6 +101,7 @@ export default function Page() {
     payload.append("excerpt", content.slice(0, 140));
     payload.append("category", category);
     payload.append("status", editItem.status || "PUBLISHED");
+    if (publishDate) payload.append("publishedAt", new Date(publishDate).toISOString());
     const cover = fd.get("coverImage");
     if (cover instanceof File && cover.size > 0) payload.append("coverImage", cover);
 
@@ -234,6 +238,14 @@ export default function Page() {
                 </select>
               </div>
               <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Publish Date</label>
+                <input
+                  type="date"
+                  name="publishDate"
+                  className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all uppercase tracking-widest bg-white"
+                />
+              </div>
+              <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Article Content</label>
                 <textarea name="content" required rows={5} className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-medium outline-none transition-all" />
               </div>
@@ -267,6 +279,15 @@ export default function Page() {
                   <option value="PRESS">PRESS</option>
                   <option value="BLOG">BLOG</option>
                 </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Publish Date</label>
+                <input
+                  type="date"
+                  name="publishDate"
+                  defaultValue={editItem?.publishedAt ? new Date(editItem.publishedAt).toISOString().slice(0, 10) : ""}
+                  className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all uppercase tracking-widest bg-white"
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Article Content</label>

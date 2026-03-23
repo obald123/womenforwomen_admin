@@ -17,10 +17,12 @@ export default function Page() {
     apiFetch<any>("/api/team?status=PUBLISHED&pageSize=100")
       .then((res) => {
         const data = Array.isArray(res.data) ? res.data : [];
-        const sorted = data.sort(
-          (a: any, b: any) =>
-            new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime()
-        );
+        const sorted = data.sort((a: any, b: any) => {
+          const ao = typeof a.displayOrder === "number" ? a.displayOrder : 0;
+          const bo = typeof b.displayOrder === "number" ? b.displayOrder : 0;
+          if (ao !== bo) return ao - bo;
+          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        });
         setItems(sorted);
       })
       .catch(() => setItems([]));
@@ -71,6 +73,10 @@ export default function Page() {
     const category = String(fd.get("category") || editItem.category || "STAFF");
     fd.set("category", category);
     fd.append("status", editItem.status || "PUBLISHED");
+    const displayOrder = String(fd.get("displayOrder") || "").trim();
+    if (!displayOrder) {
+      fd.delete("displayOrder");
+    }
     const photo = fd.get("photo");
     if (!(photo instanceof File) || photo.size === 0) {
       fd.delete("photo");
@@ -82,6 +88,31 @@ export default function Page() {
         setEditItem(null);
         fetchItems();
       })
+      .catch((err) => toast.error(formatApiError(err)));
+  }
+
+  function moveItem(index: number, direction: -1 | 1) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= items.length) return;
+    const current = items[index];
+    const target = items[nextIndex];
+    const currentOrder = typeof current.displayOrder === "number" ? current.displayOrder : index;
+    const targetOrder = typeof target.displayOrder === "number" ? target.displayOrder : nextIndex;
+    const isSameOrder = currentOrder === targetOrder;
+    const swapA = isSameOrder ? nextIndex : targetOrder;
+    const swapB = isSameOrder ? index : currentOrder;
+
+    Promise.all([
+      apiFetch(`/api/team/${current.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ displayOrder: swapA }),
+      }),
+      apiFetch(`/api/team/${target.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ displayOrder: swapB }),
+      }),
+    ])
+      .then(() => fetchItems())
       .catch((err) => toast.error(formatApiError(err)));
   }
 
@@ -115,7 +146,7 @@ export default function Page() {
               </div>
             )}
 
-            {items.map((it) => (
+            {items.map((it, index) => (
               <div key={it.id} className="bg-white border border-[#F2F2F2] p-6">
                 <div className="flex items-center gap-4 mb-4">
                   <div className="w-20 h-20 bg-gray-100 rounded-full overflow-hidden flex items-center justify-center">
@@ -129,8 +160,29 @@ export default function Page() {
                   <div className="flex-1">
                     <h3 className="text-[13px] font-black uppercase">{it.name}</h3>
                     <p className="text-[11px] font-bold text-gray-400 mt-1">{it.role}</p>
+                    <p className="text-[10px] font-bold text-[#00A991] mt-2">ORDER</p>
                   </div>
                   <div className="flex items-center gap-3">
+                    <div className="flex flex-col gap-1">
+                      <button
+                        type="button"
+                        onClick={() => moveItem(index, -1)}
+                        disabled={index === 0}
+                        className="text-[10px] font-black text-[#0D2323] disabled:text-gray-300"
+                        title="Move up"
+                      >
+                        UP
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveItem(index, 1)}
+                        disabled={index === items.length - 1}
+                        className="text-[10px] font-black text-[#0D2323] disabled:text-gray-300"
+                        title="Move down"
+                      >
+                        DOWN
+                      </button>
+                    </div>
                     <button onClick={() => handleEdit(it)} className="text-gray-300 hover:text-[#0D2323]">
                       <Pencil size={16} />
                     </button>
