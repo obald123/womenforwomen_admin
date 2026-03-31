@@ -26,7 +26,7 @@ export default function Modal({ open, onClose, title, subtitle, children }: Prop
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6">
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4 sm:p-6">
       {/* Backdrop with premium blur */}
       <div 
         className="absolute inset-0 bg-[#0D2323]/60 backdrop-blur-sm transition-opacity animate-in fade-in duration-300" 
@@ -37,7 +37,7 @@ export default function Modal({ open, onClose, title, subtitle, children }: Prop
       <div 
         role="dialog" 
         aria-modal="true" 
-        className="relative z-10 w-full max-w-2xl bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
+        className="relative z-[301] w-full max-w-2xl bg-white rounded-2xl shadow-[0_20px_60px_-15px_rgba(0,0,0,0.3)] overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300"
       >
         {/* Header Section */}
         <div className="relative px-8 pt-8 pb-6 border-b border-[#FAF9F6]">

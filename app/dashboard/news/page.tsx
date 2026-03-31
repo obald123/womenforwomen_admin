@@ -2,8 +2,19 @@
 import React, { useEffect, useState } from "react";
 import { Plus, Trash2, ExternalLink, Search, Pencil } from "lucide-react";
 import Modal from "../components/Modal";
+import ArticleEditor from "../components/ArticleEditor";
 import { apiFetch, formatApiError, resolveAssetUrl } from "../../../lib/apiClient";
 import { toast } from "react-toastify";
+
+function stripHtml(html: string) {
+  return html
+    .replace(/<\/(p|div|h2|h3|li|blockquote)>/gi, " ")
+    .replace(/<br\s*\/?>/gi, " ")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
 
 export default function Page() {
   const [items, setItems] = useState<any[]>([]);
@@ -15,6 +26,8 @@ export default function Page() {
   const [viewItem, setViewItem] = useState<any | null>(null);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteItem, setDeleteItem] = useState<any | null>(null);
+  const [createContent, setCreateContent] = useState<string>("");
+  const [editContent, setEditContent] = useState<string>("");
 
   function fetchItems() {
     apiFetch<any>("/api/articles")
@@ -33,7 +46,7 @@ export default function Page() {
   function handleAdd(form: HTMLFormElement) {
     const fd = new FormData(form);
     const title = String(fd.get("title") || "");
-    const content = String(fd.get("content") || "");
+    const content = createContent;
     const category = String(fd.get("category") || "NEWS");
     const publishDate = String(fd.get("publishDate") || "");
     if (content.length < 20) {
@@ -43,7 +56,7 @@ export default function Page() {
     const payload = new FormData();
     payload.append("title", title);
     payload.append("content", content);
-    payload.append("excerpt", content.slice(0, 140));
+    payload.append("excerpt", stripHtml(content).slice(0, 140));
     payload.append("category", category);
     payload.append("status", "PUBLISHED");
     if (publishDate) payload.append("publishedAt", new Date(publishDate).toISOString());
@@ -53,6 +66,7 @@ export default function Page() {
     apiFetch("/api/articles", { method: "POST", body: payload })
       .then(() => {
         setOpen(false);
+        setCreateContent("");
         fetchItems();
       })
       .catch((err) => toast.error(formatApiError(err)));
@@ -76,6 +90,7 @@ export default function Page() {
 
   function handleEdit(item: any) {
     setEditItem(item);
+    setEditContent(String(item?.content || ""));
     setEditOpen(true);
   }
 
@@ -88,7 +103,7 @@ export default function Page() {
     if (!editItem) return;
     const fd = new FormData(form);
     const title = String(fd.get("title") || "");
-    const content = String(fd.get("content") || "");
+    const content = editContent;
     const category = String(fd.get("category") || editItem.category || "NEWS");
     const publishDate = String(fd.get("publishDate") || "");
     if (content.length < 20) {
@@ -98,7 +113,7 @@ export default function Page() {
     const payload = new FormData();
     payload.append("title", title);
     payload.append("content", content);
-    payload.append("excerpt", content.slice(0, 140));
+    payload.append("excerpt", stripHtml(content).slice(0, 140));
     payload.append("category", category);
     payload.append("status", editItem.status || "PUBLISHED");
     if (publishDate) payload.append("publishedAt", new Date(publishDate).toISOString());
@@ -109,6 +124,7 @@ export default function Page() {
       .then(() => {
         setEditOpen(false);
         setEditItem(null);
+        setEditContent("");
         fetchItems();
       })
       .catch((err) => toast.error(formatApiError(err)));
@@ -247,7 +263,7 @@ export default function Page() {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Article Content</label>
-                <textarea name="content" required rows={5} className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-medium outline-none transition-all" />
+                <ArticleEditor value={createContent} onChange={setCreateContent} />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Cover Image</label>
@@ -291,7 +307,7 @@ export default function Page() {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Article Content</label>
-                <textarea name="content" defaultValue={editItem?.content || ""} required rows={5} className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-medium outline-none transition-all" />
+                <ArticleEditor value={editContent} onChange={setEditContent} />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Cover Image</label>
