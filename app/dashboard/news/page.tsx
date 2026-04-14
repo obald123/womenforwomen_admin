@@ -344,7 +344,10 @@ export default function Page() {
                 </div>
                 <div>
                   <div className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Content</div>
-                  <div className="mt-2 text-sm text-[#0D2323] whitespace-pre-wrap">{viewItem.content}</div>
+                  <div
+                    className="mt-2 text-sm text-[#0D2323] [&_p]:mb-4 [&_h2]:mt-6 [&_h2]:mb-3 [&_h2]:text-lg [&_h2]:font-bold [&_h3]:mt-5 [&_h3]:mb-2 [&_h3]:text-base [&_h3]:font-semibold [&_ul]:mb-4 [&_ul]:ml-5 [&_ul]:list-disc [&_li]:mb-1 [&_a]:text-[#007A71] [&_a]:underline [&_strong]:font-semibold [&_b]:font-semibold [&_em]:italic [&_i]:italic [&_u]:underline [&_img]:my-4 [&_img]:max-w-full [&_img]:rounded-md [&_img]:border [&_img]:border-[#E7EEED]"
+                    dangerouslySetInnerHTML={{ __html: String(viewItem.content || "") }}
+                  />
                 </div>
                 <div className="flex justify-end pt-2">
                   <button type="button" onClick={() => { setViewOpen(false); setViewItem(null); }} className="bg-[#0D2323] text-white px-6 py-2 text-[10px] font-black tracking-[0.2em] hover:bg-[#00A991] transition-all">
