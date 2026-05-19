@@ -124,15 +124,16 @@ export default function ArticleEditor({ value, onChange, onImageAdded, className
     input.click();
   };
 
-  function escapeHtml(str: string) {
-    return str.replace(/[&<>"']/g, (s) => ({
-      '&': '&amp;',
-      '<': '&lt;',
-      '>': '&gt;',
-      '"': '&quot;',
-      "'": '&#39;'
-    }[s]));
-  }
+function escapeHtml(str: string) {
+  const escapeMap: Record<string, string> = {
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;'
+  };
+  return str.replace(/[&<>"']/g, (s) => escapeMap[s] || s);
+}
 
   const handleCaptionSubmit = () => {
     if (pendingImageUrl) {
