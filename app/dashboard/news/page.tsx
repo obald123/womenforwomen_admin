@@ -28,6 +28,10 @@ export default function Page() {
   const [deleteItem, setDeleteItem] = useState<any | null>(null);
   const [createContent, setCreateContent] = useState<string>("");
   const [editContent, setEditContent] = useState<string>("");
+  const [createCoverCaption, setCreateCoverCaption] = useState<string>("");
+  const [editCoverCaption, setEditCoverCaption] = useState<string>("");
+  const [createImagesMetadata, setCreateImagesMetadata] = useState<Array<{url: string; caption: string}>>([]);
+  const [editImagesMetadata, setEditImagesMetadata] = useState<Array<{url: string; caption: string}>>([]);
 
   function fetchItems() {
     apiFetch<any>("/api/articles")
@@ -49,6 +53,7 @@ export default function Page() {
     const content = createContent;
     const category = String(fd.get("category") || "NEWS");
     const publishDate = String(fd.get("publishDate") || "");
+    const coverCaption = String(fd.get("coverCaption") || "");
     if (content.length < 20) {
       toast.error("Content must be at least 20 characters");
       return;
@@ -60,6 +65,8 @@ export default function Page() {
     payload.append("category", category);
     payload.append("status", "PUBLISHED");
     if (publishDate) payload.append("publishedAt", new Date(publishDate).toISOString());
+    if (coverCaption) payload.append("coverImageCaption", coverCaption);
+    if (createImagesMetadata.length > 0) payload.append("imagesMetadata", JSON.stringify(createImagesMetadata));
     const cover = fd.get("coverImage");
     if (cover instanceof File && cover.size > 0) payload.append("coverImage", cover);
 
@@ -67,7 +74,10 @@ export default function Page() {
       .then(() => {
         setOpen(false);
         setCreateContent("");
+        setCreateCoverCaption("");
+        setCreateImagesMetadata([]);
         fetchItems();
+        toast.success("Article published successfully!");
       })
       .catch((err) => toast.error(formatApiError(err)));
   }
@@ -91,6 +101,8 @@ export default function Page() {
   function handleEdit(item: any) {
     setEditItem(item);
     setEditContent(String(item?.content || ""));
+    setEditCoverCaption(String(item?.coverImageCaption || ""));
+    setEditImagesMetadata(Array.isArray(item?.imagesMetadata) ? item.imagesMetadata : []);
     setEditOpen(true);
   }
 
@@ -106,6 +118,7 @@ export default function Page() {
     const content = editContent;
     const category = String(fd.get("category") || editItem.category || "NEWS");
     const publishDate = String(fd.get("publishDate") || "");
+    const coverCaption = String(fd.get("coverCaption") || "");
     if (content.length < 20) {
       toast.error("Content must be at least 20 characters");
       return;
@@ -117,6 +130,8 @@ export default function Page() {
     payload.append("category", category);
     payload.append("status", editItem.status || "PUBLISHED");
     if (publishDate) payload.append("publishedAt", new Date(publishDate).toISOString());
+    if (coverCaption) payload.append("coverImageCaption", coverCaption);
+    if (editImagesMetadata.length > 0) payload.append("imagesMetadata", JSON.stringify(editImagesMetadata));
     const cover = fd.get("coverImage");
     if (cover instanceof File && cover.size > 0) payload.append("coverImage", cover);
 
@@ -263,11 +278,28 @@ export default function Page() {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Article Content</label>
-                <ArticleEditor value={createContent} onChange={setCreateContent} />
+                <ArticleEditor 
+                  value={createContent} 
+                  onChange={setCreateContent}
+                  onImageAdded={(url, caption) => {
+                    setCreateImagesMetadata([...createImagesMetadata, { url, caption }]);
+                  }}
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Cover Image</label>
                 <input name="coverImage" type="file" accept="image/*" className="w-full" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Cover Image Caption (Optional)</label>
+                <textarea 
+                  name="coverCaption"
+                  value={createCoverCaption}
+                  onChange={(e) => setCreateCoverCaption(e.target.value)}
+                  placeholder="Add a caption for the cover image..."
+                  className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all"
+                  rows={2}
+                />
               </div>
               <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
                 <button type="button" onClick={() => setOpen(false)} className="text-[10px] font-black tracking-[0.2em] text-gray-400">CANCEL</button>
@@ -307,11 +339,30 @@ export default function Page() {
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Article Content</label>
-                <ArticleEditor value={editContent} onChange={setEditContent} />
+                <ArticleEditor 
+                  value={editContent} 
+                  onChange={setEditContent}
+                  onImageAdded={(url, caption) => {
+                    if (!editImagesMetadata.find(img => img.url === url)) {
+                      setEditImagesMetadata([...editImagesMetadata, { url, caption }]);
+                    }
+                  }}
+                />
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Cover Image</label>
                 <input name="coverImage" type="file" accept="image/*" className="w-full" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Cover Image Caption (Optional)</label>
+                <textarea 
+                  name="coverCaption"
+                  value={editCoverCaption}
+                  onChange={(e) => setEditCoverCaption(e.target.value)}
+                  placeholder="Add a caption for the cover image..."
+                  className="w-full border-2 border-[#F2F2F2] focus:border-[#0D2323] px-4 py-3 text-xs font-bold outline-none transition-all"
+                  rows={2}
+                />
               </div>
               <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
                 <button type="button" onClick={() => { setEditOpen(false); setEditItem(null); }} className="text-[10px] font-black tracking-[0.2em] text-gray-400">CANCEL</button>

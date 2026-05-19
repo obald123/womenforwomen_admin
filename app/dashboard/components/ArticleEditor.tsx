@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Underline from "@tiptap/extension-underline";
@@ -12,6 +12,7 @@ import { apiFetch } from "../../../lib/apiClient";
 type Props = {
   value: string;
   onChange: (html: string) => void;
+  onImageAdded?: (imageUrl: string, caption: string) => void;
   className?: string;
 };
 
@@ -57,7 +58,11 @@ async function uploadInlineImage(file: File) {
   return res.url;
 }
 
-export default function ArticleEditor({ value, onChange, className }: Props) {
+export default function ArticleEditor({ value, onChange, onImageAdded, className }: Props) {
+  const [showCaptionModal, setShowCaptionModal] = useState(false);
+  const [caption, setCaption] = useState("");
+  const [pendingImageUrl, setPendingImageUrl] = useState<string | null>(null);
+
   const editor = useEditor({
     extensions: [
       StarterKit.configure({
@@ -109,12 +114,26 @@ export default function ArticleEditor({ value, onChange, className }: Props) {
       if (!file) return;
       try {
         const url = await uploadInlineImage(file);
-        editor.chain().focus().setImage({ src: url, alt: file.name }).run();
+        setPendingImageUrl(url);
+        setCaption("");
+        setShowCaptionModal(true);
       } catch {
         // errors are handled by callers via toast in the page; keep editor simple
       }
     };
     input.click();
+  };
+
+  const handleCaptionSubmit = () => {
+    if (pendingImageUrl) {
+      editor?.chain().focus().setImage({ src: pendingImageUrl, alt: caption || "Image" }).run();
+      if (onImageAdded) {
+        onImageAdded(pendingImageUrl, caption);
+      }
+    }
+    setShowCaptionModal(false);
+    setPendingImageUrl(null);
+    setCaption("");
   };
 
   return (
@@ -173,6 +192,41 @@ export default function ArticleEditor({ value, onChange, className }: Props) {
       <div className="border-2 border-t-0 border-[#F2F2F2] bg-white px-4 py-3">
         <EditorContent editor={editor} />
       </div>
+
+      {showCaptionModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+          <div className="w-96 rounded-lg bg-white p-6 shadow-xl">
+            <h3 className="mb-4 text-sm font-bold uppercase tracking-widest">Add Image Caption</h3>
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="Enter a caption or description for this image..."
+              className="mb-4 w-full rounded border-2 border-[#F2F2F2] p-3 text-sm outline-none focus:border-[#0D2323]"
+              rows={3}
+            />
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCaptionModal(false);
+                  setPendingImageUrl(null);
+                  setCaption("");
+                }}
+                className="px-4 py-2 text-xs font-bold uppercase text-gray-400 hover:text-gray-600"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCaptionSubmit}
+                className="rounded bg-[#0D2323] px-6 py-2 text-xs font-bold uppercase text-white hover:bg-[#00A991]"
+              >
+                Add Image
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
