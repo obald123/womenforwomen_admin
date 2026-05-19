@@ -16,6 +16,61 @@ function stripHtml(html: string) {
     .trim();
 }
 
+function extractImagesFromHtml(html: string) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const imgs = Array.from(doc.querySelectorAll('img'));
+    return imgs.map((img) => {
+      const src = img.getAttribute('src') || '';
+      const figure = img.closest('figure');
+      const caption = figure?.querySelector('figcaption')?.textContent?.trim() || '';
+      return { url: src, caption };
+    });
+  } catch (e) {
+    return [];
+  }
+}
+
+function applyImageCaptionsToContent(content: string, imagesMeta: Array<{url: string; caption: string}>) {
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(content, 'text/html');
+    imagesMeta.forEach((meta) => {
+      if (!meta.url) return;
+      const imgs = Array.from(doc.querySelectorAll('img')).filter((img) => {
+        const src = img.getAttribute('src') || '';
+        return src === meta.url || src.endsWith(meta.url) || meta.url.endsWith(src) || src.includes(meta.url);
+      });
+      imgs.forEach((img) => {
+        const figure = img.closest('figure');
+        if (figure) {
+          let figcap = figure.querySelector('figcaption');
+          if (!figcap) {
+            figcap = doc.createElement('figcaption');
+            figure.appendChild(figcap);
+          }
+          figcap.textContent = meta.caption || '';
+        } else {
+          const fig = doc.createElement('figure');
+          fig.className = 'article-inline-figure';
+          const parent = img.parentNode;
+          if (parent) {
+            parent.replaceChild(fig, img);
+            fig.appendChild(img);
+            const figcap = doc.createElement('figcaption');
+            figcap.textContent = meta.caption || '';
+            fig.appendChild(figcap);
+          }
+        }
+      });
+    });
+    return doc.body.innerHTML;
+  } catch (e) {
+    return content;
+  }
+}
+
 export default function Page() {
   const [items, setItems] = useState<any[]>([]);
   const [open, setOpen] = useState(false);
@@ -58,10 +113,13 @@ export default function Page() {
       toast.error("Content must be at least 20 characters");
       return;
     }
+    // Inject captions into the HTML content before sending
+    const contentWithCaptions = applyImageCaptionsToContent(content, createImagesMetadata);
+
     const payload = new FormData();
     payload.append("title", title);
-    payload.append("content", content);
-    payload.append("excerpt", stripHtml(content).slice(0, 140));
+    payload.append("content", contentWithCaptions);
+    payload.append("excerpt", stripHtml(contentWithCaptions).slice(0, 140));
     payload.append("category", category);
     payload.append("status", "PUBLISHED");
     if (publishDate) payload.append("publishedAt", new Date(publishDate).toISOString());
@@ -100,9 +158,16 @@ export default function Page() {
 
   function handleEdit(item: any) {
     setEditItem(item);
-    setEditContent(String(item?.content || ""));
+    const contentStr = String(item?.content || "");
+    setEditContent(contentStr);
     setEditCoverCaption(String(item?.coverImageCaption || ""));
-    setEditImagesMetadata(Array.isArray(item?.imagesMetadata) ? item.imagesMetadata : []);
+    // Prefer parsing inline images from the HTML content; fall back to stored metadata
+    const parsed = extractImagesFromHtml(contentStr);
+    if (parsed && parsed.length > 0) {
+      setEditImagesMetadata(parsed);
+    } else {
+      setEditImagesMetadata(Array.isArray(item?.imagesMetadata) ? item.imagesMetadata : []);
+    }
     setEditOpen(true);
   }
 
@@ -123,10 +188,13 @@ export default function Page() {
       toast.error("Content must be at least 20 characters");
       return;
     }
+    // Inject captions into the content HTML before sending
+    const contentWithCaptions = applyImageCaptionsToContent(content, editImagesMetadata);
+
     const payload = new FormData();
     payload.append("title", title);
-    payload.append("content", content);
-    payload.append("excerpt", stripHtml(content).slice(0, 140));
+    payload.append("content", contentWithCaptions);
+    payload.append("excerpt", stripHtml(contentWithCaptions).slice(0, 140));
     payload.append("category", category);
     payload.append("status", editItem.status || "PUBLISHED");
     if (publishDate) payload.append("publishedAt", new Date(publishDate).toISOString());
@@ -348,6 +416,32 @@ export default function Page() {
                     }
                   }}
                 />
+
+                {/* Inline images captions editor */}
+                {editImagesMetadata.length > 0 && (
+                  <div className="mt-4 space-y-3 bg-[#FBFBFB] border border-[#F2F2F2] p-3">
+                    <div className="text-[11px] font-bold text-gray-500 uppercase tracking-widest mb-2">Inline image captions</div>
+                    {editImagesMetadata.map((img, idx) => (
+                      <div key={img.url + idx} className="flex gap-3 items-start">
+                        <img src={img.url} alt={img.caption || 'image'} className="w-24 h-16 object-cover rounded" />
+                        <div className="flex-1">
+                          <textarea
+                            value={img.caption}
+                            onChange={(e) => {
+                              const next = [...editImagesMetadata];
+                              next[idx] = { ...next[idx], caption: e.target.value };
+                              setEditImagesMetadata(next);
+                            }}
+                            placeholder="Caption for this image"
+                            className="w-full border-2 border-[#F2F2F2] p-2 text-sm outline-none"
+                            rows={2}
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Cover Image</label>

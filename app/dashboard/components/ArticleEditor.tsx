@@ -124,9 +124,21 @@ export default function ArticleEditor({ value, onChange, onImageAdded, className
     input.click();
   };
 
+  function escapeHtml(str: string) {
+    return str.replace(/[&<>"']/g, (s) => ({
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;'
+    }[s]));
+  }
+
   const handleCaptionSubmit = () => {
     if (pendingImageUrl) {
-      editor?.chain().focus().setImage({ src: pendingImageUrl, alt: caption || "Image" }).run();
+      const safeCaption = escapeHtml(caption || "");
+      const figureHtml = `<figure class=\"article-inline-figure\"><img src=\"${pendingImageUrl}\" alt=\"${safeCaption || 'Image'}\" /><figcaption>${safeCaption}</figcaption></figure>`;
+      editor?.chain().focus().insertContent(figureHtml).run();
       if (onImageAdded) {
         onImageAdded(pendingImageUrl, caption);
       }
