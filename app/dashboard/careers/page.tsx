@@ -1,10 +1,11 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect, useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, FileText } from "lucide-react";
 import { apiFetch, formatApiError, API_URL } from "../../../lib/apiClient";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
+import ArticleEditor from "../components/ArticleEditor";
 
 const STATUSES = ["NEW", "REVIEWING", "SHORTLISTED", "REJECTED", "HIRED"];
 const API_BASE = API_URL;
@@ -18,6 +19,8 @@ export default function CareersPage() {
   const [viewApp, setViewApp] = useState<any | null>(null);
   const [viewTitle, setViewTitle] = useState("");
   const [selectedJob, setSelectedJob] = useState<any | null>(null);
+  const [descriptionHtml, setDescriptionHtml] = useState("<p></p>");
+  const [descFileName, setDescFileName] = useState<string | null>(null);
 
   function fetchJobs() {
     apiFetch<any>("/api/jobs")
@@ -44,32 +47,39 @@ export default function CareersPage() {
 
   function handleCreate(form: HTMLFormElement) {
     const fd = new FormData(form);
-    const title = String(fd.get("title") || "");
-    const description = String(fd.get("description") || "");
-    const requirementsRaw = String(fd.get("requirements") || "");
-    const dueDate = String(fd.get("dueDate") || "");
-    const requirements = requirementsRaw
-      ? requirementsRaw.split("\n").map((r) => r.trim()).filter(Boolean)
-      : undefined;
 
-    apiFetch("/api/jobs", {
+    // Inject rich-text description HTML from editor state
+    fd.delete("description");
+    fd.append("description", descriptionHtml);
+
+    // Requirements: send as JSON string (validator will parse it)
+    const requirementsRaw = String(fd.get("requirements") || "");
+    fd.delete("requirements");
+    if (requirementsRaw.trim()) {
+      const arr = requirementsRaw.split("\n").map((r) => r.trim()).filter(Boolean);
+      fd.append("requirements", JSON.stringify(arr));
+    }
+
+    const token = localStorage.getItem("accessToken");
+    fetch(`${API_BASE}/api/jobs`, {
       method: "POST",
-      body: JSON.stringify({
-        title,
-        department: fd.get("department"),
-        location: fd.get("location"),
-        employment: fd.get("employment"),
-        description,
-        requirements,
-        dueDate: dueDate || undefined,
-        status: "OPEN",
-      }),
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
     })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.message || "Failed to create job");
+        }
+        return res.json();
+      })
       .then(() => {
         setOpenAdd(false);
+        setDescriptionHtml("<p></p>");
+        setDescFileName(null);
         fetchJobs();
       })
-      .catch((err) => toast.error(formatApiError(err)));
+      .catch((err) => toast.error(err.message || "Failed to create job"));
   }
 
   function handleDelete(jobId: string) {
@@ -146,7 +156,7 @@ export default function CareersPage() {
       a.click();
       a.remove();
       window.URL.revokeObjectURL(url);
-    } catch (err) {
+    } catch {
       toast.error("Download failed.");
     }
   }
@@ -163,7 +173,14 @@ export default function CareersPage() {
               </div>
               <h1 className="text-4xl font-black tracking-tight text-[#0D2323] uppercase">Job Openings</h1>
             </div>
-            <button onClick={() => setOpenAdd(true)} className="flex items-center gap-2 bg-[#0D2323] text-white px-6 py-3 text-[11px] font-black">
+            <button
+              onClick={() => {
+                setDescriptionHtml("<p></p>");
+                setDescFileName(null);
+                setOpenAdd(true);
+              }}
+              className="flex items-center gap-2 bg-[#0D2323] text-white px-6 py-3 text-[11px] font-black"
+            >
               <Plus size={14} /> Add Job
             </button>
           </div>
@@ -179,6 +196,12 @@ export default function CareersPage() {
                       <button onClick={() => selectJob(j)} className="text-left">
                         <div className="text-[12px] font-black">{j.title}</div>
                         <div className="text-[11px] text-gray-400">{j.location || ""} {j.employment ? `• ${j.employment}` : ""}</div>
+                        {j.descriptionFileUrl && (
+                          <div className="mt-1 flex items-center gap-1 text-[10px] text-[#00A991]">
+                            <FileText size={10} />
+                            {j.descriptionFileName || "Job Description"}
+                          </div>
+                        )}
                       </button>
                       <button onClick={() => handleDelete(j.id)} className="text-gray-300 hover:text-red-600">
                         <Trash2 size={16} />
@@ -303,8 +326,13 @@ export default function CareersPage() {
             )}
           </div>
 
+          {/* Add Job Modal */}
           <Modal open={openAdd} onClose={() => setOpenAdd(false)} title="Add Job Opening">
-            <form onSubmit={(e) => { e.preventDefault(); handleCreate(e.currentTarget); }} className="space-y-4">
+            <form
+              onSubmit={(e) => { e.preventDefault(); handleCreate(e.currentTarget); }}
+              className="space-y-4"
+              encType="multipart/form-data"
+            >
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Title</label>
                 <input name="title" required className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs font-bold" />
@@ -327,14 +355,38 @@ export default function CareersPage() {
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Due Date</label>
                 <input type="date" name="dueDate" className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs font-bold" />
               </div>
+
+              {/* Rich-text description using the same ArticleEditor as news */}
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Description</label>
-                <textarea name="description" rows={5} required className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs" />
+                <ArticleEditor value={descriptionHtml} onChange={setDescriptionHtml} />
               </div>
+
               <div className="space-y-2">
                 <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Requirements (one per line)</label>
                 <textarea name="requirements" rows={4} className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs" />
               </div>
+
+              {/* Job description file upload */}
+              <div className="space-y-2">
+                <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">
+                  Job Description File <span className="text-gray-300 font-bold">(PDF or Word — optional, downloadable by applicants)</span>
+                </label>
+                <input
+                  type="file"
+                  name="descriptionFile"
+                  accept=".pdf,.doc,.docx"
+                  onChange={(e) => setDescFileName(e.target.files?.[0]?.name || null)}
+                  className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs"
+                />
+                {descFileName && (
+                  <div className="flex items-center gap-2 text-[11px] text-[#00A991]">
+                    <FileText size={12} />
+                    {descFileName}
+                  </div>
+                )}
+              </div>
+
               <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
                 <button type="button" onClick={() => setOpenAdd(false)} className="text-[10px] font-black text-gray-400">Cancel</button>
                 <button type="submit" className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black">Publish</button>
@@ -342,6 +394,7 @@ export default function CareersPage() {
             </form>
           </Modal>
 
+          {/* Applicant detail Modal */}
           <Modal open={openView} onClose={() => setOpenView(false)} title="Applicant Details">
             {viewApp && (
               <div className="space-y-4 text-[#0D2323]">
