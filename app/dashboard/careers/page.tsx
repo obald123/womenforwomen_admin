@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { Plus, Trash2, FileText } from "lucide-react";
+import { Plus, Trash2, FileText, Pencil } from "lucide-react";
 import { apiFetch, formatApiError, API_URL } from "../../../lib/apiClient";
 import { toast } from "react-toastify";
 import Modal from "../components/Modal";
@@ -21,6 +21,10 @@ export default function CareersPage() {
   const [selectedJob, setSelectedJob] = useState<any | null>(null);
   const [descriptionHtml, setDescriptionHtml] = useState("<p></p>");
   const [descFileName, setDescFileName] = useState<string | null>(null);
+  const [openEdit, setOpenEdit] = useState(false);
+  const [editJob, setEditJob] = useState<any | null>(null);
+  const [editDescriptionHtml, setEditDescriptionHtml] = useState("<p></p>");
+  const [editDescFileName, setEditDescFileName] = useState<string | null>(null);
 
   function fetchJobs() {
     apiFetch<any>("/api/jobs")
@@ -80,6 +84,49 @@ export default function CareersPage() {
         fetchJobs();
       })
       .catch((err) => toast.error(err.message || "Failed to create job"));
+  }
+
+  function openEditModal(job: any) {
+    setEditJob(job);
+    setEditDescriptionHtml(job.description || "<p></p>");
+    setEditDescFileName(job.descriptionFileName || null);
+    setOpenEdit(true);
+  }
+
+  function handleUpdate(form: HTMLFormElement) {
+    if (!editJob) return;
+    const fd = new FormData(form);
+
+    fd.delete("description");
+    fd.append("description", editDescriptionHtml);
+
+    const requirementsRaw = String(fd.get("requirements") || "");
+    fd.delete("requirements");
+    if (requirementsRaw.trim()) {
+      const arr = requirementsRaw.split("\n").map((r) => r.trim()).filter(Boolean);
+      fd.append("requirements", JSON.stringify(arr));
+    }
+
+    const token = localStorage.getItem("accessToken");
+    fetch(`${API_BASE}/api/jobs/${editJob.id}`, {
+      method: "PATCH",
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body: fd,
+    })
+      .then(async (res) => {
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data?.message || "Failed to update job");
+        }
+        return res.json();
+      })
+      .then(() => {
+        setOpenEdit(false);
+        setEditJob(null);
+        fetchJobs();
+        toast.success("Job updated successfully");
+      })
+      .catch((err) => toast.error(err.message || "Failed to update job"));
   }
 
   function handleDelete(jobId: string) {
@@ -203,9 +250,22 @@ export default function CareersPage() {
                           </div>
                         )}
                       </button>
-                      <button onClick={() => handleDelete(j.id)} className="text-gray-300 hover:text-red-600">
-                        <Trash2 size={16} />
-                      </button>
+                      <div className="flex items-center gap-3">
+                        <button
+                          onClick={() => openEditModal(j)}
+                          className="text-gray-300 hover:text-[#00A991]"
+                          title="Edit job"
+                        >
+                          <Pencil size={15} />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(j.id)}
+                          className="text-gray-300 hover:text-red-600"
+                          title="Delete job"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -392,6 +452,125 @@ export default function CareersPage() {
                 <button type="submit" className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black">Publish</button>
               </div>
             </form>
+          </Modal>
+
+          {/* Edit Job Modal */}
+          <Modal open={openEdit} onClose={() => setOpenEdit(false)} title="Edit Job Opening">
+            {editJob && (
+              <form
+                onSubmit={(e) => { e.preventDefault(); handleUpdate(e.currentTarget); }}
+                className="space-y-4"
+                encType="multipart/form-data"
+              >
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Title</label>
+                  <input
+                    name="title"
+                    required
+                    defaultValue={editJob.title}
+                    className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs font-bold"
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Department</label>
+                    <input
+                      name="department"
+                      defaultValue={editJob.department || ""}
+                      className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs font-bold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Location</label>
+                    <input
+                      name="location"
+                      defaultValue={editJob.location || ""}
+                      className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs font-bold"
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Employment Type</label>
+                  <input
+                    name="employment"
+                    defaultValue={editJob.employment || ""}
+                    className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs font-bold"
+                    placeholder="Full-time, Contract, etc."
+                  />
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Due Date</label>
+                    <input
+                      type="date"
+                      name="dueDate"
+                      defaultValue={editJob.dueDate ? editJob.dueDate.slice(0, 10) : ""}
+                      className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs font-bold"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Status</label>
+                    <select
+                      name="status"
+                      defaultValue={editJob.status || "OPEN"}
+                      className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs font-bold"
+                    >
+                      <option value="OPEN">Open</option>
+                      <option value="CLOSED">Closed</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Description</label>
+                  <ArticleEditor value={editDescriptionHtml} onChange={setEditDescriptionHtml} />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">Requirements (one per line)</label>
+                  <textarea
+                    name="requirements"
+                    rows={4}
+                    defaultValue={
+                      Array.isArray(editJob.requirements)
+                        ? editJob.requirements.join("\n")
+                        : ""
+                    }
+                    className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black tracking-[0.2em] text-gray-400 uppercase">
+                    Job Description File <span className="text-gray-300 font-bold">(leave empty to keep existing)</span>
+                  </label>
+                  {editJob.descriptionFileUrl && !editDescFileName && (
+                    <div className="flex items-center gap-2 text-[11px] text-[#00A991] mb-1">
+                      <FileText size={12} />
+                      Current: {editJob.descriptionFileName || "Job Description"}
+                    </div>
+                  )}
+                  <input
+                    type="file"
+                    name="descriptionFile"
+                    accept=".pdf,.doc,.docx"
+                    onChange={(e) => setEditDescFileName(e.target.files?.[0]?.name || null)}
+                    className="w-full border-2 border-[#F2F2F2] px-4 py-3 text-xs"
+                  />
+                  {editDescFileName && (
+                    <div className="flex items-center gap-2 text-[11px] text-[#00A991]">
+                      <FileText size={12} />
+                      New file: {editDescFileName}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
+                  <button type="button" onClick={() => setOpenEdit(false)} className="text-[10px] font-black text-gray-400">Cancel</button>
+                  <button type="submit" className="bg-[#00A991] text-white px-8 py-3 text-[10px] font-black">Save Changes</button>
+                </div>
+              </form>
+            )}
           </Modal>
 
           {/* Applicant detail Modal */}
