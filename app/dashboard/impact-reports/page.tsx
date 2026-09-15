@@ -191,7 +191,7 @@ export default function Page() {
                 {it.description && <p className="text-[11px] text-gray-700 mb-3">{it.description}</p>}
                 {it.fileUrl && (
                   <a
-                    href={resolveAssetUrl(it.fileUrl)}
+                    href={resolveAssetUrl(`/api/public/impact-reports/${it.id}/download`)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 text-[10px] font-black tracking-[0.15em] uppercase text-[#00A991] hover:text-[#0D2323]"
