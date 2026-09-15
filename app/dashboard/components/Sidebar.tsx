@@ -14,6 +14,7 @@ import {
   ArrowLeft,
   ArrowRight,
   LayoutDashboard,
+  FileText,
 } from "lucide-react";
 
 const mainNav = [
@@ -24,6 +25,7 @@ const mainNav = [
   { key: "careers", label: "Careers", icon: Briefcase },
   { key: "gallery", label: "Gallery", icon: ImageIcon },
   { key: "team", label: "Team", icon: Users },
+  { key: "impact-reports", label: "Impact Reports", icon: FileText },
   { key: "newsletter", label: "Newsletter", icon: Mail },
 ];
 
