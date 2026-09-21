@@ -1,6 +1,6 @@
 ﻿"use client";
 import React, { useEffect, useState } from "react";
-import { Plus, Trash2, Image as ImageIcon, Maximize2, Camera, UploadCloud, Pencil } from "lucide-react";
+import { Plus, Trash2, Image as ImageIcon, Maximize2, Camera, UploadCloud, Pencil, Film } from "lucide-react";
 import Modal from "../components/Modal";
 import { apiFetch, formatApiError, resolveAssetUrl } from "../../../lib/apiClient";
 import { toast } from "react-toastify";
@@ -14,6 +14,7 @@ export default function Page() {
   const [deleteItem, setDeleteItem] = useState<any | null>(null);
   const [viewOpen, setViewOpen] = useState(false);
   const [viewItem, setViewItem] = useState<any | null>(null);
+  const [mediaBusy, setMediaBusy] = useState(false);
 
   function fetchItems() {
     apiFetch<any>("/api/gallery")
@@ -96,6 +97,74 @@ export default function Page() {
         setEditItem(null);
         fetchItems();
       })
+      .catch((err) => toast.error(formatApiError(err)));
+  }
+
+  function refreshEditItem(id: string) {
+    return apiFetch<any>(`/api/gallery/${id}`).then((res) => {
+      setEditItem(res.data);
+      fetchItems();
+      return res.data;
+    });
+  }
+
+  function handleAddImages(files: FileList | null) {
+    if (!editItem || !files || !files.length) return;
+    const fd = new FormData();
+    Array.from(files).forEach((file) => fd.append("images", file));
+    setMediaBusy(true);
+    apiFetch(`/api/gallery/${editItem.id}/images`, { method: "POST", body: fd })
+      .then(() => refreshEditItem(editItem.id))
+      .catch((err) => toast.error(formatApiError(err)))
+      .finally(() => setMediaBusy(false));
+  }
+
+  function handleDeleteImage(imageId: string) {
+    if (!editItem) return;
+    setMediaBusy(true);
+    apiFetch(`/api/gallery/${editItem.id}/images/${imageId}`, { method: "DELETE" })
+      .then(() => refreshEditItem(editItem.id))
+      .catch((err) => toast.error(formatApiError(err)))
+      .finally(() => setMediaBusy(false));
+  }
+
+  function handleImageCaptionSave(imageId: string, caption: string) {
+    if (!editItem) return;
+    apiFetch(`/api/gallery/${editItem.id}/images/${imageId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ caption }),
+    })
+      .then(() => refreshEditItem(editItem.id))
+      .catch((err) => toast.error(formatApiError(err)));
+  }
+
+  function handleAddVideos(files: FileList | null) {
+    if (!editItem || !files || !files.length) return;
+    const fd = new FormData();
+    Array.from(files).forEach((file) => fd.append("videos", file));
+    setMediaBusy(true);
+    apiFetch(`/api/gallery/${editItem.id}/videos`, { method: "POST", body: fd })
+      .then(() => refreshEditItem(editItem.id))
+      .catch((err) => toast.error(formatApiError(err)))
+      .finally(() => setMediaBusy(false));
+  }
+
+  function handleDeleteVideo(videoId: string) {
+    if (!editItem) return;
+    setMediaBusy(true);
+    apiFetch(`/api/gallery/${editItem.id}/videos/${videoId}`, { method: "DELETE" })
+      .then(() => refreshEditItem(editItem.id))
+      .catch((err) => toast.error(formatApiError(err)))
+      .finally(() => setMediaBusy(false));
+  }
+
+  function handleVideoCaptionSave(videoId: string, caption: string) {
+    if (!editItem) return;
+    apiFetch(`/api/gallery/${editItem.id}/videos/${videoId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ caption }),
+    })
+      .then(() => refreshEditItem(editItem.id))
       .catch((err) => toast.error(formatApiError(err)));
   }
 
@@ -216,25 +285,126 @@ export default function Page() {
 
           {/* EDIT MODAL */}
           <Modal open={editOpen} onClose={() => { setEditOpen(false); setEditItem(null); }} title="EDIT GALLERY">
-            <form onSubmit={(e) => { e.preventDefault(); handleUpdate(e.currentTarget); }} className="space-y-6">
-              <div className="space-y-2">
-                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Gallery Title</label>
-                <input name="title" defaultValue={editItem?.title || ""} required className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none uppercase tracking-widest" />
+            <div className="space-y-10">
+              <form onSubmit={(e) => { e.preventDefault(); handleUpdate(e.currentTarget); }} className="space-y-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Gallery Title</label>
+                  <input name="title" defaultValue={editItem?.title || ""} required className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none uppercase tracking-widest" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Publish Date</label>
+                  <input
+                    type="date"
+                    name="publishedAt"
+                    defaultValue={formatDateInput(editItem?.publishedAt || editItem?.createdAt)}
+                    className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none uppercase tracking-widest"
+                  />
+                </div>
+                <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
+                  <button type="button" onClick={() => { setEditOpen(false); setEditItem(null); }} className="text-[10px] font-black tracking-[0.3em] text-gray-400">CANCEL</button>
+                  <button type="submit" className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black tracking-[0.2em] hover:bg-[#00A991] transition-all">SAVE CHANGES</button>
+                </div>
+              </form>
+
+              {/* IMAGES MANAGER */}
+              <div className="space-y-4 pt-6 border-t border-[#F2F2F2]">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase flex items-center gap-2">
+                    <ImageIcon size={14} /> Images ({editItem?.images?.length || 0})
+                  </label>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Array.isArray(editItem?.images) && editItem.images.map((img: any) => (
+                    <div key={img.id} className="relative border border-[#F2F2F2] group">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={resolveAssetUrl(img.url)} alt={img.caption || editItem?.title} className="w-full h-28 object-cover" />
+                      <button
+                        type="button"
+                        disabled={mediaBusy}
+                        onClick={() => handleDeleteImage(img.id)}
+                        className="absolute top-1 right-1 bg-white/90 p-1 text-red-600 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                        aria-label="Delete image"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                      <input
+                        type="text"
+                        placeholder="Caption"
+                        defaultValue={img.caption || ""}
+                        onBlur={(e) => {
+                          if (e.currentTarget.value !== (img.caption || "")) {
+                            handleImageCaptionSave(img.id, e.currentTarget.value);
+                          }
+                        }}
+                        className="w-full bg-[#F9F9F9] text-[10px] px-2 py-1 outline-none border-t border-[#F2F2F2]"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <label className="relative block border-2 border-dashed border-gray-200 p-6 text-center cursor-pointer hover:border-[#00A991] transition-colors">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    disabled={mediaBusy}
+                    onChange={(e) => { handleAddImages(e.target.files); e.target.value = ""; }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <div className="flex flex-col items-center gap-2">
+                    <UploadCloud size={22} className="text-gray-300" />
+                    <span className="text-[9px] font-black tracking-[0.2em] text-[#0D2323] uppercase">Add images</span>
+                  </div>
+                </label>
               </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase">Publish Date</label>
-                <input
-                  type="date"
-                  name="publishedAt"
-                  defaultValue={formatDateInput(editItem?.publishedAt || editItem?.createdAt)}
-                  className="w-full bg-[#F9F9F9] border-2 border-transparent focus:border-[#0D2323] p-4 text-xs font-bold outline-none uppercase tracking-widest"
-                />
+
+              {/* VIDEOS MANAGER */}
+              <div className="space-y-4 pt-6 border-t border-[#F2F2F2]">
+                <label className="text-[10px] font-black tracking-[0.3em] text-[#0D2323] uppercase flex items-center gap-2">
+                  <Film size={14} /> Videos ({editItem?.videos?.length || 0})
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Array.isArray(editItem?.videos) && editItem.videos.map((vid: any) => (
+                    <div key={vid.id} className="relative border border-[#F2F2F2] group">
+                      <video src={resolveAssetUrl(vid.url)} preload="metadata" className="w-full h-28 object-cover" />
+                      <button
+                        type="button"
+                        disabled={mediaBusy}
+                        onClick={() => handleDeleteVideo(vid.id)}
+                        className="absolute top-1 right-1 bg-white/90 p-1 text-red-600 opacity-0 group-hover:opacity-100 transition-opacity disabled:opacity-50"
+                        aria-label="Delete video"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                      <input
+                        type="text"
+                        placeholder="Caption"
+                        defaultValue={vid.caption || ""}
+                        onBlur={(e) => {
+                          if (e.currentTarget.value !== (vid.caption || "")) {
+                            handleVideoCaptionSave(vid.id, e.currentTarget.value);
+                          }
+                        }}
+                        className="w-full bg-[#F9F9F9] text-[10px] px-2 py-1 outline-none border-t border-[#F2F2F2]"
+                      />
+                    </div>
+                  ))}
+                </div>
+                <label className="relative block border-2 border-dashed border-gray-200 p-6 text-center cursor-pointer hover:border-[#00A991] transition-colors">
+                  <input
+                    type="file"
+                    accept="video/*"
+                    multiple
+                    disabled={mediaBusy}
+                    onChange={(e) => { handleAddVideos(e.target.files); e.target.value = ""; }}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                  />
+                  <div className="flex flex-col items-center gap-2">
+                    <UploadCloud size={22} className="text-gray-300" />
+                    <span className="text-[9px] font-black tracking-[0.2em] text-[#0D2323] uppercase">Add videos</span>
+                  </div>
+                </label>
               </div>
-              <div className="flex justify-end gap-4 pt-4 border-t border-[#F2F2F2]">
-                <button type="button" onClick={() => { setEditOpen(false); setEditItem(null); }} className="text-[10px] font-black tracking-[0.3em] text-gray-400">CANCEL</button>
-                <button type="submit" className="bg-[#0D2323] text-white px-8 py-3 text-[10px] font-black tracking-[0.2em] hover:bg-[#00A991] transition-all">SAVE CHANGES</button>
-              </div>
-            </form>
+            </div>
           </Modal>
 
           {/* DELETE CONFIRMATION */}
