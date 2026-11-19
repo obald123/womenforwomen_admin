@@ -10,9 +10,11 @@ export type ApiErrorPayload = {
 
 export class ApiError extends Error {
   details?: any;
-  constructor(message: string, details?: any) {
+  status?: number;
+  constructor(message: string, details?: any, status?: number) {
     super(message);
     this.details = details;
+    this.status = status;
   }
 }
 
@@ -45,11 +47,14 @@ function clearTokens() {
 }
 
 async function parseError(res: Response) {
+  const body = await res.text();
+  if (!body) return new ApiError("Request failed", undefined, res.status);
+
   try {
-    const data = (await res.json()) as ApiErrorPayload;
-    return new ApiError(data.message || "Request failed", data.details);
+    const data = JSON.parse(body) as ApiErrorPayload;
+    return new ApiError(data.message || "Request failed", data.details, res.status);
   } catch {
-    return new ApiError(await res.text());
+    return new ApiError(body, undefined, res.status);
   }
 }
 
