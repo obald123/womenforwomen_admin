@@ -21,6 +21,13 @@ export class ApiError extends Error {
 export function resolveAssetUrl(url?: string) {
   if (!url) return url;
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  if (url.startsWith("/images/")) {
+    if (process.env.NODE_ENV === "development" && typeof window !== "undefined") {
+      return `${window.location.protocol}//${window.location.hostname}:3000${url}`;
+    }
+    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+    return siteUrl ? new URL(url, siteUrl).toString() : url;
+  }
   return `${API_URL}${url}`;
 }
 

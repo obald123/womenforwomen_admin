@@ -2,7 +2,16 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState, type ChangeEvent, type FormEvent } from "react";
-import { ArrowDown, ArrowUp, Image as ImageIcon, Plus, RefreshCw, Save, Trash2 } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  ClipboardCheck,
+  Image as ImageIcon,
+  Plus,
+  RefreshCw,
+  Save,
+  Trash2,
+} from "lucide-react";
 import { ApiError, apiFetch, formatApiError, resolveAssetUrl } from "../../../lib/apiClient";
 import { toast } from "react-toastify";
 
@@ -50,6 +59,41 @@ const EMPTY_CAMPAIGN: DonationCampaign = {
   ctaLabel: "Donate now",
 };
 
+const REQUESTED_GALLERY_ITEMS: CampaignGalleryItem[] = [
+  {
+    url: "/images/donation-campaign/workshop-class.png",
+    caption: "Women learning practical sewing skills in a workshop.",
+  },
+  {
+    url: "/images/donation-campaign/sewing-training-closeup.png",
+    caption: "A close look at garment-making training.",
+  },
+  {
+    url: "/images/donation-campaign/sewing-class-practice.jpeg",
+    caption: "Participants practice sewing together.",
+  },
+  {
+    url: "/images/donation-campaign/participant-at-sewing-machine.jpeg",
+    caption: "A trainee works at a sewing machine.",
+  },
+  {
+    url: "/images/donation-campaign/shoemaking-training.jpeg",
+    caption: "Learning practical skills to create handmade shoes.",
+  },
+  {
+    url: "/images/donation-campaign/knitting-training.jpeg",
+    caption: "Women develop knitting skills during vocational training.",
+  },
+];
+
+const REQUESTED_PARAGRAPHS = [
+  "On December 1, your generosity can open new doors for women in Rwanda.",
+  "At Women for Women Rwanda, we believe that when a woman gains the skills and confidence to earn her own income, the possibilities go far beyond her.",
+  "Through our Stronger Women, Stronger Nation program, women gain practical vocational skills, learn to manage money, save, and explore opportunities to build their own livelihoods.",
+  "This Giving Tuesday, December 1, 2026, we invite you to join that journey. Your support can make a difference that reaches far beyond one woman.",
+  "Your donation through GlobalGiving will help us continue creating opportunities for women to learn, grow, and build brighter futures for themselves, their families, and their communities.",
+];
+
 function isUrl(value: string) {
   try {
     new URL(value);
@@ -57,6 +101,13 @@ function isUrl(value: string) {
   } catch {
     return false;
   }
+}
+
+function isCampaignImageReference(value: string) {
+  if (value.startsWith("/images/")) {
+    return !value.startsWith("//") && !value.split("/").includes("..");
+  }
+  return isUrl(value);
 }
 
 function normalizeCampaign(data: Partial<DonationCampaign>): DonationCampaign {
@@ -239,6 +290,33 @@ export default function DonationCampaignPage() {
     );
   }
 
+  function applyRequestedContent() {
+    if (pendingImages.length > 0) {
+      const shouldReplace = window.confirm(
+        "Applying the supplied campaign photos will discard any new image uploads that have not been saved. Continue?",
+      );
+      if (!shouldReplace) return;
+      pendingImages.forEach((image) => revokePreview(image.previewUrl));
+      setPendingImages([]);
+    }
+
+    setCampaign((current) =>
+      current
+        ? {
+            ...current,
+            eyebrow: "Giving Tuesday | December 1, 2026",
+            title: "Help Another Woman Build a Future of Her Own",
+            paragraphs: [...REQUESTED_PARAGRAPHS],
+            closingLine: "Every gift counts. Every woman deserves the opportunity to thrive.",
+            imageUrl: REQUESTED_GALLERY_ITEMS[0].url,
+            imageUrls: REQUESTED_GALLERY_ITEMS.map((item) => item.url),
+            galleryItems: REQUESTED_GALLERY_ITEMS.map((item) => ({ ...item })),
+          }
+        : current,
+    );
+    toast.info("Requested copy and six supplied photos added. Save the campaign to publish them.");
+  }
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!campaign || saving) return;
@@ -267,9 +345,7 @@ export default function DonationCampaignPage() {
       return;
     }
     if (
-      galleryItems.some(
-        (item) => !item.url || !isUrl(item.url) || !item.caption,
-      )
+      galleryItems.some((item) => !item.url || !isCampaignImageReference(item.url) || !item.caption)
     ) {
       toast.error("Every gallery image needs a valid URL and caption. Remove any unfinished image rows.");
       return;
@@ -344,15 +420,26 @@ export default function DonationCampaignPage() {
                 Manage the Giving Tuesday hero, story, photo gallery, impact figures, and donation link shown on the homepage and donate page.
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => void loadCampaign()}
-              disabled={loading || saving}
-              className="inline-flex items-center justify-center gap-2 border border-[#DDE5E2] bg-white px-5 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#24423B] transition hover:border-[#00A991] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
-              Reload campaign
-            </button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <button
+                type="button"
+                onClick={applyRequestedContent}
+                disabled={loading || saving || !campaign}
+                className="inline-flex items-center justify-center gap-2 bg-[#0D2323] px-5 py-3 text-[10px] font-black uppercase tracking-[0.12em] text-white transition hover:bg-[#00A991] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <ClipboardCheck size={14} />
+                Apply requested copy & photos
+              </button>
+              <button
+                type="button"
+                onClick={() => void loadCampaign()}
+                disabled={loading || saving}
+                className="inline-flex items-center justify-center gap-2 border border-[#DDE5E2] bg-white px-5 py-3 text-[10px] font-black uppercase tracking-[0.16em] text-[#24423B] transition hover:border-[#00A991] disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
+                Reload campaign
+              </button>
+            </div>
           </div>
 
           {isNewCampaign && !loading && (
@@ -507,7 +594,7 @@ export default function DonationCampaignPage() {
                     <div className="mt-2 flex gap-2">
                       <input
                         ref={imageUrlInput}
-                        type="url"
+                        type="text"
                         id="campaign-image-url"
                         placeholder="https://example.org/photo.jpg"
                         className="w-full border border-[#E4E9E7] px-4 py-3 text-sm outline-none focus:border-[#00A991]"
@@ -517,8 +604,8 @@ export default function DonationCampaignPage() {
                         onClick={() => {
                           const input = imageUrlInput.current;
                           const url = input?.value.trim() ?? "";
-                          if (!isUrl(url)) {
-                            toast.error("Enter a valid image URL.");
+                          if (!isCampaignImageReference(url)) {
+                            toast.error("Enter a valid image URL or a site-local path under /images/.");
                             return;
                           }
                           setCampaign((current) =>
@@ -568,7 +655,7 @@ export default function DonationCampaignPage() {
                         <label className={labelClassName}>
                           Image URL
                           <input
-                            type="url"
+                            type="text"
                             required
                             value={item.url}
                             onChange={(event) => updateGalleryItem(index, { url: event.target.value })}
